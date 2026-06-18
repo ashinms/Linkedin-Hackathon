@@ -1337,7 +1337,21 @@ Return ONLY a JSON object with this exact structure:
       }),
       () => this.mockService.analyzeTranscript(transcript, survey),
       'analyzeTranscript'
-    );
+    ).then(res => {
+      if (res && res.improvementAnalysis) {
+        const imp = res.improvementAnalysis;
+        if (Array.isArray(imp.strengths)) {
+          imp.strengths = imp.strengths.map((s: any) => typeof s === 'object' ? s.description || s.text || s.strength || JSON.stringify(s) : String(s));
+        }
+        if (Array.isArray(imp.weaknesses)) {
+          imp.weaknesses = imp.weaknesses.map((w: any) => typeof w === 'object' ? w.description || w.text || w.weakness || JSON.stringify(w) : String(w));
+        }
+        if (Array.isArray(imp.actionableTips)) {
+          imp.actionableTips = imp.actionableTips.map((t: any) => typeof t === 'object' ? t.description || t.text || t.tip || JSON.stringify(t) : String(t));
+        }
+      }
+      return res;
+    });
   }
 
   async generatePracticeResponse(userMessage: string, survey: Survey, history: any, persona?: string): Promise<string> {
@@ -1374,7 +1388,25 @@ CRITICAL RULES: Stay in character. Never mention AI. Keep it to 1-3 natural conv
       }),
       () => this.mockService.generatePracticeFeedback(transcript, survey, coachPersona),
       'generatePracticeFeedback'
-    );
+    ).then(res => {
+      if (res && Array.isArray(res.improvements)) {
+        res.improvements = res.improvements.map((item: any) => {
+          if (item && typeof item === 'object') {
+            return item.description || item.text || item.improvement || JSON.stringify(item);
+          }
+          return String(item);
+        });
+      }
+      if (res && Array.isArray(res.strengths)) {
+        res.strengths = res.strengths.map((item: any) => {
+          if (item && typeof item === 'object') {
+            return item.description || item.text || item.strength || JSON.stringify(item);
+          }
+          return String(item);
+        });
+      }
+      return res;
+    });
   }
 
   async matchReferrals(responses: Record<string, string>, initiatives: CommunityInitiative[]): Promise<ReferralRecommendation[]> {
@@ -1975,16 +2007,22 @@ export const RecordingView: React.FC<{ survey: Survey; onSaveProfile: (r: Record
                 <div>
                   <p className="text-[9px] font-black text-white/60 uppercase mb-2">Strengths</p>
                   <ul className="space-y-1">
-                    {analysis!.improvementAnalysis.strengths.map((s, i) => (
-                      <li key={i} className="text-xs flex items-center gap-2 text-white/80"><CheckCircle size={14} className="text-green-400" />{s}</li>
+                    {analysis!.improvementAnalysis.strengths.map((s: any, i) => (
+                      <li key={i} className="text-xs flex items-center gap-2 text-white/80">
+                        <CheckCircle size={14} className="text-green-400 flex-shrink-0" />
+                        <span>{typeof s === 'object' ? s.description || s.text || s.strength || JSON.stringify(s) : s}</span>
+                      </li>
                     ))}
                   </ul>
                 </div>
                 <div>
                   <p className="text-[9px] font-black text-white/60 uppercase mb-2">Actionable Tips</p>
                   <ul className="space-y-1">
-                    {analysis!.improvementAnalysis.actionableTips.map((t, i) => (
-                      <li key={i} className="text-xs font-bold italic text-white/80"><Lightbulb size={14} className="text-yellow-400 inline mr-2" />{t}</li>
+                    {analysis!.improvementAnalysis.actionableTips.map((t: any, i) => (
+                      <li key={i} className="text-xs font-bold italic text-white/80">
+                        <Lightbulb size={14} className="text-yellow-400 inline mr-2 flex-shrink-0" />
+                        <span>{typeof t === 'object' ? t.description || t.text || t.tip || JSON.stringify(t) : t}</span>
+                      </li>
                     ))}
                   </ul>
                 </div>
@@ -2249,14 +2287,24 @@ export const CoachingView: React.FC<{ survey: Survey }> = ({ survey }) => {
         <div className="glass-card rounded-[2rem] p-6 space-y-4">
           <h3 className="flex items-center gap-2 font-black text-[10px] uppercase text-white"><TrendingUp size={16} className="text-green-400" /> Strengths</h3>
           <ul className="space-y-2 text-xs text-white/80">
-            {feedbackData.strengths.map((s: string, i: number) => <li key={i} className="flex gap-2"><CheckCircle size={14} className="text-green-400 flex-shrink-0" />{s}</li>)}
+            {feedbackData.strengths.map((s: any, i: number) => (
+              <li key={i} className="flex gap-2">
+                <CheckCircle size={14} className="text-green-400 flex-shrink-0" />
+                <span>{typeof s === 'object' ? s.description || s.text || s.strength || JSON.stringify(s) : s}</span>
+              </li>
+            ))}
           </ul>
         </div>
 
         <div className="glass-card rounded-[2rem] p-6 space-y-4">
           <h3 className="flex items-center gap-2 font-black text-[10px] uppercase text-white"><Lightbulb size={16} className="text-yellow-400" /> Improvements</h3>
           <ul className="space-y-2 text-xs text-white/80">
-            {feedbackData.improvements.map((s: string, i: number) => <li key={i} className="flex gap-2"><Lightbulb size={14} className="text-yellow-400 flex-shrink-0" />{s}</li>)}
+            {feedbackData.improvements.map((s: any, i: number) => (
+              <li key={i} className="flex gap-2">
+                <Lightbulb size={14} className="text-yellow-400 flex-shrink-0" />
+                <span>{typeof s === 'object' ? s.description || s.text || s.improvement || JSON.stringify(s) : s}</span>
+              </li>
+            ))}
           </ul>
         </div>
 

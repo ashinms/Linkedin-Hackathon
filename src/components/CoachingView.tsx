@@ -202,14 +202,24 @@ export const CoachingView: React.FC<{ survey: Survey }> = ({ survey }) => {
         <div className="glass-card rounded-[2rem] p-6 space-y-4">
           <h3 className="flex items-center gap-2 font-black text-[10px] uppercase text-white"><TrendingUp size={16} className="text-green-400" /> Strengths</h3>
           <ul className="space-y-2 text-xs text-white/80">
-            {feedbackData.strengths.map((s: string, i: number) => <li key={i} className="flex gap-2"><CheckCircle size={14} className="text-green-400 flex-shrink-0" />{s}</li>)}
+            {feedbackData.strengths.map((s: any, i: number) => (
+              <li key={i} className="flex gap-2">
+                <CheckCircle size={14} className="text-green-400 flex-shrink-0" />
+                <span>{typeof s === 'object' ? s.description || s.text || s.strength || JSON.stringify(s) : s}</span>
+              </li>
+            ))}
           </ul>
         </div>
 
         <div className="glass-card rounded-[2rem] p-6 space-y-4">
           <h3 className="flex items-center gap-2 font-black text-[10px] uppercase text-white"><Lightbulb size={16} className="text-yellow-400" /> Improvements</h3>
           <ul className="space-y-2 text-xs text-white/80">
-            {feedbackData.improvements.map((s: string, i: number) => <li key={i} className="flex gap-2"><Lightbulb size={14} className="text-yellow-400 flex-shrink-0" />{s}</li>)}
+            {feedbackData.improvements.map((s: any, i: number) => (
+              <li key={i} className="flex gap-2">
+                <Lightbulb size={14} className="text-yellow-400 flex-shrink-0" />
+                <span>{typeof s === 'object' ? s.description || s.text || s.improvement || JSON.stringify(s) : s}</span>
+              </li>
+            ))}
           </ul>
         </div>
 

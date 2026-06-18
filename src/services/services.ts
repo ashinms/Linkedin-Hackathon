@@ -665,7 +665,21 @@ Return ONLY a JSON object with this exact structure:
       }),
       () => this.mockService.analyzeTranscript(transcript, survey),
       'analyzeTranscript'
-    );
+    ).then(res => {
+      if (res && res.improvementAnalysis) {
+        const imp = res.improvementAnalysis;
+        if (Array.isArray(imp.strengths)) {
+          imp.strengths = imp.strengths.map((s: any) => typeof s === 'object' ? s.description || s.text || s.strength || JSON.stringify(s) : String(s));
+        }
+        if (Array.isArray(imp.weaknesses)) {
+          imp.weaknesses = imp.weaknesses.map((w: any) => typeof w === 'object' ? w.description || w.text || w.weakness || JSON.stringify(w) : String(w));
+        }
+        if (Array.isArray(imp.actionableTips)) {
+          imp.actionableTips = imp.actionableTips.map((t: any) => typeof t === 'object' ? t.description || t.text || t.tip || JSON.stringify(t) : String(t));
+        }
+      }
+      return res;
+    });
   }
 
   async generatePracticeResponse(userMessage: string, survey: Survey, history: any, persona?: string): Promise<string> {
@@ -702,7 +716,25 @@ CRITICAL RULES: Stay in character. Never mention AI. Keep it to 1-3 natural conv
       }),
       () => this.mockService.generatePracticeFeedback(transcript, survey, coachPersona),
       'generatePracticeFeedback'
-    );
+    ).then(res => {
+      if (res && Array.isArray(res.improvements)) {
+        res.improvements = res.improvements.map((item: any) => {
+          if (item && typeof item === 'object') {
+            return item.description || item.text || item.improvement || JSON.stringify(item);
+          }
+          return String(item);
+        });
+      }
+      if (res && Array.isArray(res.strengths)) {
+        res.strengths = res.strengths.map((item: any) => {
+          if (item && typeof item === 'object') {
+            return item.description || item.text || item.strength || JSON.stringify(item);
+          }
+          return String(item);
+        });
+      }
+      return res;
+    });
   }
 
   async matchReferrals(responses: Record<string, string>, initiatives: CommunityInitiative[]): Promise<ReferralRecommendation[]> {

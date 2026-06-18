@@ -175,16 +175,22 @@ export const RecordingView: React.FC<{ survey: Survey; onSaveProfile: (r: Record
                 <div>
                   <p className="text-[9px] font-black text-white/60 uppercase mb-2">Strengths</p>
                   <ul className="space-y-1">
-                    {analysis!.improvementAnalysis.strengths.map((s, i) => (
-                      <li key={i} className="text-xs flex items-center gap-2 text-white/80"><CheckCircle size={14} className="text-green-400" />{s}</li>
+                    {analysis!.improvementAnalysis.strengths.map((s: any, i) => (
+                      <li key={i} className="text-xs flex items-center gap-2 text-white/80">
+                        <CheckCircle size={14} className="text-green-400 flex-shrink-0" />
+                        <span>{typeof s === 'object' ? s.description || s.text || s.strength || JSON.stringify(s) : s}</span>
+                      </li>
                     ))}
                   </ul>
                 </div>
                 <div>
                   <p className="text-[9px] font-black text-white/60 uppercase mb-2">Actionable Tips</p>
                   <ul className="space-y-1">
-                    {analysis!.improvementAnalysis.actionableTips.map((t, i) => (
-                      <li key={i} className="text-xs font-bold italic text-white/80"><Lightbulb size={14} className="text-yellow-400 inline mr-2" />{t}</li>
+                    {analysis!.improvementAnalysis.actionableTips.map((t: any, i) => (
+                      <li key={i} className="text-xs font-bold italic text-white/80">
+                        <Lightbulb size={14} className="text-yellow-400 inline mr-2 flex-shrink-0" />
+                        <span>{typeof t === 'object' ? t.description || t.text || t.tip || JSON.stringify(t) : t}</span>
+                      </li>
                     ))}
                   </ul>
                 </div>
