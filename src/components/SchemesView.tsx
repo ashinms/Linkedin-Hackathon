@@ -13,7 +13,7 @@ export const SchemesView: React.FC<{
   const [eligibility, setEligibility] = useState('');
   const [filter, setFilter] = useState<'all' | 'Financial Bursary' | 'Upskilling' | 'Activity'>('all');
 
-  const filtered = initiatives.filter(i => filter === 'all' || i.category === filter);
+  const filtered = (initiatives || []).filter(i => i && (filter === 'all' || i.category === filter));
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,12 +21,14 @@ export const SchemesView: React.FC<{
     const newItem: CommunityInitiative = {
       id: `init-${Date.now()}`,
       title: title.trim(),
-      category,
+      category: category || 'Outreach Event',
       description: description.trim(),
-      eligibility: eligibility.trim() || 'Open to all Singapore residents.',
-      organisation: organisation.trim() || 'Social Services'
+      eligibility: (eligibility || '').trim() || 'Open to all Singapore residents.',
+      organisation: (organisation || '').trim() || 'Social Services'
     };
-    setInitiatives(prev => [...prev, newItem]);
+    if (typeof setInitiatives === 'function') {
+      setInitiatives(prev => [...(prev || []), newItem]);
+    }
     setTitle('');
     setDescription('');
     setEligibility('');
@@ -35,7 +37,8 @@ export const SchemesView: React.FC<{
   };
 
   const groupedByOrg = filtered.reduce((groups, item) => {
-    const org = item.organisation?.trim() || 'Other Services';
+    if (!item) return groups;
+    const org = (typeof item.organisation === 'string' ? item.organisation.trim() : '') || 'Other Services';
     if (!groups[org]) {
       groups[org] = [];
     }
