@@ -1231,6 +1231,13 @@ Return ONLY pure JSON matching this schema:
         if (!item) return "";
         if (typeof item === 'string') return item;
         if (typeof item === 'object') {
+          const stepName = item.stepName || item.name || item.step || item.title || item.label || '';
+          const desc = item.description || item.desc || '';
+          if (stepName && desc) {
+            return `${stepName} - ${desc}`;
+          }
+          if (stepName) return stepName;
+          
           const keys = Object.keys(item);
           if (keys.length === 1) return `${keys[0]}: ${typeof item[keys[0]] === 'object' ? JSON.stringify(item[keys[0]]) : item[keys[0]]}`;
           return item.name || item.step || JSON.stringify(item);
@@ -3282,6 +3289,19 @@ describe('GroqService Response Parsing & Normalization', () => {
     const parser = (service as any).parseResponse.bind(service);
     expect(parser(null)).toEqual({});
     expect(parser('not a json')).toEqual({});
+  });
+
+  it('normalizes survey flow steps when they are returned as objects with stepName and description', () => {
+    const normalizer = (service as any).normalizeSurveyFlow.bind(service);
+    const flowObj = [
+      { stepName: 'Intro', description: 'Introduce yourself' },
+      { name: 'Core', desc: 'Ask questions' },
+      'Closing'
+    ];
+    const result = normalizer(flowObj);
+    expect(result[0]).toBe('Intro - Introduce yourself');
+    expect(result[1]).toBe('Core - Ask questions');
+    expect(result[2]).toBe('Closing');
   });
 
   it('normalizes snake_case fields and phrasings fields to standard camelCase arrays', async () => {

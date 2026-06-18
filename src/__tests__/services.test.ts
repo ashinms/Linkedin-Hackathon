@@ -141,6 +141,19 @@ describe('GroqService Response Parsing & Normalization', () => {
     expect(parser('not a json')).toEqual({});
   });
 
+  it('normalizes survey flow steps when they are returned as objects with stepName and description', () => {
+    const normalizer = (service as any).normalizeSurveyFlow.bind(service);
+    const flowObj = [
+      { stepName: 'Intro', description: 'Introduce yourself' },
+      { name: 'Core', desc: 'Ask questions' },
+      'Closing'
+    ];
+    const result = normalizer(flowObj);
+    expect(result[0]).toBe('Intro - Introduce yourself');
+    expect(result[1]).toBe('Core - Ask questions');
+    expect(result[2]).toBe('Closing');
+  });
+
   it('normalizes snake_case fields and phrasings fields to standard camelCase arrays', async () => {
     // Stub the groq client call to return custom snake_case payloads
     const mockChatCompletion = vi.fn().mockResolvedValue({

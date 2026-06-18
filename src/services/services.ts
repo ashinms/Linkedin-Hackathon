@@ -559,6 +559,13 @@ Return ONLY pure JSON matching this schema:
         if (!item) return "";
         if (typeof item === 'string') return item;
         if (typeof item === 'object') {
+          const stepName = item.stepName || item.name || item.step || item.title || item.label || '';
+          const desc = item.description || item.desc || '';
+          if (stepName && desc) {
+            return `${stepName} - ${desc}`;
+          }
+          if (stepName) return stepName;
+          
           const keys = Object.keys(item);
           if (keys.length === 1) return `${keys[0]}: ${typeof item[keys[0]] === 'object' ? JSON.stringify(item[keys[0]]) : item[keys[0]]}`;
           return item.name || item.step || JSON.stringify(item);
