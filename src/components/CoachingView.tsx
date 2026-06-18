@@ -31,6 +31,8 @@ export const CoachingView: React.FC<{ survey: Survey }> = ({ survey }) => {
   const [questionCoaching, setQuestionCoaching] = useState<QuestionCoaching[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedPersona, setSelectedPersona] = useState<'default' | 'elderly' | 'busy' | 'stressed'>('default');
+  const [selectedMood, setSelectedMood] = useState<'cooperative' | 'skeptical' | 'rushed' | 'confused'>('cooperative');
   const [messages, setMessages] = useState<any[]>([]);
   const [isAILoading, setIsAILoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -108,7 +110,24 @@ export const CoachingView: React.FC<{ survey: Survey }> = ({ survey }) => {
 
     try {
       const history = messages.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }));
-      const response = await aiService.generatePracticeResponse(content, survey, history, overview?.participantPersona);
+      
+      const basePersona = overview?.participantPersona || "A regular survey participant.";
+      const personaPrompts = {
+        default: "",
+        elderly: "Persona: You are Mr. Tan, a 74-year-old retired senior citizen. You speak slowly, sometimes get confused, share long nostalgic stories about the neighborhood, and require the interviewer to speak clearly and rephrase technical terms.",
+        busy: "Persona: You are Sarah, a 38-year-old working mother of three. You are highly distracted, multi-tasking during the conversation, give short answers, and want the interview to end quickly because your toddler is crying.",
+        stressed: "Persona: You are Raju, a 42-year-old delivery rider. You are highly stressed, insecure about your finances, and extremely hesitant to share your exact income range or personal contact details unless the interviewer handles the topic with extreme confidentiality and empathy."
+      };
+      const moodPrompts = {
+        cooperative: "Mood: You are friendly, cooperative, warm, and speak in a polite tone.",
+        skeptical: "Mood: You are skeptical, distrustful, and highly protective of your privacy. You frequently ask 'Why do you need to know this?' and need reassurance before answering personal questions.",
+        rushed: "Mood: You are impatient, rushed, and keep saying things like 'I only have a couple minutes' or 'can we skip to the end?'. You give one-word answers.",
+        confused: "Mood: You are easily confused, hard-of-hearing (in call mode) or forgetful, change your answers halfway, and ask 'What does that mean?' when asked anything complex."
+      };
+
+      const customPersona = `${basePersona}\n\n[OVERRIDE CONFIG]\n${personaPrompts[selectedPersona]}\n${moodPrompts[selectedMood]}`;
+      
+      const response = await aiService.generatePracticeResponse(content, survey, history, customPersona);
       const aiMsg = { id: `a-${Date.now()}`, role: 'ai', content: response, timestamp: Date.now() };
       setMessages(prev => [...prev, aiMsg]);
       if (practiceMode === 'call') await speechService.speak(response);
@@ -382,21 +401,76 @@ export const CoachingView: React.FC<{ survey: Survey }> = ({ survey }) => {
         {activeTab === 'practice' && (
           <div className="h-[550px] flex flex-col glass-card rounded-[2.5rem] overflow-hidden border border-white/10 relative">
             {!practiceMode ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-8">
-                <div className="text-center space-y-3">
-                  <div className="w-16 h-16 glass-inset rounded-[1.5rem] flex items-center justify-center mx-auto text-blue-400"><Sparkles size={32} /></div>
-                  <h3 className="text-2xl font-black text-white">AI Simulation Practice</h3>
-                  <p className="text-[10px] font-bold uppercase text-white/60">Choose interaction channel</p>
+              <div className="flex-1 flex flex-col justify-start p-6 space-y-5 overflow-y-auto">
+                <div className="text-center space-y-2 flex-shrink-0">
+                  <div className="w-12 h-12 glass-inset rounded-[1.25rem] flex items-center justify-center mx-auto text-blue-400"><Sparkles size={24} /></div>
+                  <h3 className="text-xl font-black text-white">AI Simulation Practice</h3>
+                  <p className="text-[9px] font-bold uppercase text-white/50">Configure Persona, Mood & Channel</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4 w-full">
-                  <button onClick={() => enterPractice('chat')} className="p-6 glass-button rounded-3xl text-center space-y-2 hover:scale-105 transition-transform">
-                    <Keyboard className="mx-auto text-white/80" size={28} />
-                    <span className="block font-black uppercase text-[9px] text-white">Chat Bot</span>
-                  </button>
-                  <button onClick={() => enterPractice('call')} className="p-6 glass-button rounded-3xl text-center space-y-2 hover:scale-105 transition-transform">
-                    <Phone className="mx-auto text-white/80" size={28} />
-                    <span className="block font-black uppercase text-[9px] text-white">Call Bot</span>
-                  </button>
+
+                {/* Persona Selector */}
+                <div className="space-y-2">
+                  <span className="text-[9px] font-black uppercase text-white/40 block pl-1">Participant Persona</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'default', label: 'Default', desc: 'Standard Profile' },
+                      { id: 'elderly', label: 'Elderly Tan', desc: '74y, slow speaker' },
+                      { id: 'busy', label: 'Busy Sarah', desc: '38y, multi-tasker' },
+                      { id: 'stressed', label: 'Stressed Raju', desc: '42y, hesitant rider' },
+                    ].map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setSelectedPersona(p.id as any)}
+                        className={`p-2.5 rounded-xl border text-left transition-all ${selectedPersona === p.id 
+                          ? 'bg-blue-500/20 border-blue-500/50 text-white' 
+                          : 'bg-white/5 border-white/5 text-white/60 hover:bg-white/10'}`}
+                      >
+                        <span className="block text-[10px] font-black uppercase tracking-tight">{p.label}</span>
+                        <span className="block text-[8px] opacity-70 mt-0.5 leading-none">{p.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Mood Selector */}
+                <div className="space-y-2">
+                  <span className="text-[9px] font-black uppercase text-white/40 block pl-1">Participant Mood</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'cooperative', label: 'Cooperative', desc: 'Friendly & polite' },
+                      { id: 'skeptical', label: 'Skeptical', desc: 'Hesitant & protective' },
+                      { id: 'rushed', label: 'Rushed', desc: 'Impatient, brief' },
+                      { id: 'confused', label: 'Confused', desc: 'Needs rephrasing' },
+                    ].map(m => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setSelectedMood(m.id as any)}
+                        className={`p-2.5 rounded-xl border text-left transition-all ${selectedMood === m.id 
+                          ? 'bg-blue-500/20 border-blue-500/50 text-white' 
+                          : 'bg-white/5 border-white/5 text-white/60 hover:bg-white/10'}`}
+                      >
+                        <span className="block text-[10px] font-black uppercase tracking-tight">{m.label}</span>
+                        <span className="block text-[8px] opacity-70 mt-0.5 leading-none">{m.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Channel Selector */}
+                <div className="space-y-2 pt-2 border-t border-white/5">
+                  <span className="text-[9px] font-black uppercase text-white/40 block pl-1 text-center">Start Simulation</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button onClick={() => enterPractice('chat')} className="py-3.5 glass-button rounded-2xl text-center space-y-1 hover:scale-105 transition-transform flex flex-col items-center justify-center">
+                      <Keyboard className="text-white/80" size={20} />
+                      <span className="block font-black uppercase text-[8px] text-white">Chat Channel</span>
+                    </button>
+                    <button onClick={() => enterPractice('call')} className="py-3.5 glass-button rounded-2xl text-center space-y-1 hover:scale-105 transition-transform flex flex-col items-center justify-center">
+                      <Phone className="text-white/80" size={20} />
+                      <span className="block font-black uppercase text-[8px] text-white">Call Channel</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (

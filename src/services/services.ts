@@ -365,8 +365,35 @@ export class MockAIService implements AIService {
     };
   }
 
-  async generatePracticeResponse(_m: string, _s: Survey, _h: any, _p?: string): Promise<string> {
-    return 'I see. Can you tell me what the next step is?';
+  async generatePracticeResponse(userMessage: string, _s: Survey, _h: any, persona?: string): Promise<string> {
+    const pStr = (persona || '').toLowerCase();
+    const isElderly = pStr.includes('tan') || pStr.includes('elderly');
+    const isBusy = pStr.includes('sarah') || pStr.includes('busy');
+    const isStressed = pStr.includes('raju') || pStr.includes('stressed');
+    
+    const isSkeptical = pStr.includes('skeptical') || pStr.includes('distrustful');
+    const isRushed = pStr.includes('rushed') || pStr.includes('impatient');
+    const isConfused = pStr.includes('confused') || pStr.includes('forgetful');
+
+    if (isRushed) {
+      return "Can we move quickly? I'm running short on time.";
+    }
+    if (isSkeptical) {
+      return "Why do you need to know that? Is it strictly confidential?";
+    }
+    if (isConfused) {
+      return "Wait, what did you ask? Could you explain that in simpler words?";
+    }
+    if (isElderly) {
+      return "Ah, back in my day things were simpler. Could you speak up a bit and explain what that means?";
+    }
+    if (isBusy) {
+      return "Hold on, my kids are crying. Okay, what was the question? Make it fast.";
+    }
+    if (isStressed) {
+      return "I don't know if I want to share that. It's personal and I am worried about it.";
+    }
+    return "I see. Could you share what the next question is?";
   }
 
   async generatePracticeFeedback(_t: string, survey: Survey, _cp?: string): Promise<any> {
