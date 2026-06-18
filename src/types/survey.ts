@@ -27,6 +27,7 @@ export interface QuestionCoaching {
   naturalPhrasing: string[];
   commonMistakes: string[];
   followUpTips: string[];
+  stealthIntegration?: string;
 }
 
 export interface RecordingAnalysis {

@@ -438,6 +438,7 @@ export interface QuestionCoaching {
   naturalPhrasing: string[];
   commonMistakes: string[];
   followUpTips: string[];
+  stealthIntegration?: string;
 }
 
 export interface RecordingAnalysis {
@@ -999,7 +1000,8 @@ export class MockAIService implements AIService {
       question: questionText,
       naturalPhrasing: data.phrasings,
       commonMistakes: data.mistakes,
-      followUpTips: data.tips
+      followUpTips: data.tips,
+      stealthIntegration: "Integrate this question casually during rapport building or when discussing their general background rather than asking it directly."
     };
   }
 
@@ -1200,6 +1202,14 @@ Return ONLY pure JSON matching this schema:
       'generateCoachingOverview'
     ).then(res => {
       res.surveyFlow = this.normalizeSurveyFlow(res.surveyFlow);
+      if (res.estimatedDuration) {
+        const raw = String(res.estimatedDuration);
+        const match = raw.match(/([0-9.]+)/);
+        if (match) {
+          const num = Math.round(parseFloat(match[1]));
+          res.estimatedDuration = `${num} minutes`;
+        }
+      }
       if (!res.participantPersona) {
         res.participantPersona = `Realistic roleplay participant for ${survey.name}. Be natural, brief, and authentic to a real human respondent without sounding like an AI assistant.`;
       } else if (typeof res.participantPersona === 'object') {
@@ -1274,7 +1284,8 @@ Return ONLY a JSON object with this exact structure:
   "followUpTips": [
     "A tip on how to handle responses or follow up",
     "Another follow-up tip"
-  ]
+  ],
+  "stealthIntegration": "A 1-2 sentence tactical recommendation on how to weave this topic/question naturally into a conversation without sounding like reading from a survey script."
 }`
           }
         ],
@@ -1296,12 +1307,17 @@ Return ONLY a JSON object with this exact structure:
                          Array.isArray(res.follow_up_tips) ? res.follow_up_tips :
                          Array.isArray(res.tips) ? res.tips : [];
 
+      const stealthIntegration = typeof res.stealthIntegration === 'string' ? res.stealthIntegration :
+                                 typeof res.stealth_integration === 'string' ? res.stealth_integration :
+                                 'Weave this topic naturally into conversation based on the participant\'s narrative.';
+
       return {
         questionId,
         question: questionText,
         naturalPhrasing: naturalPhrasing.length > 0 ? naturalPhrasing : ["Ask the question naturally and listen carefully."],
         commonMistakes: commonMistakes.length > 0 ? commonMistakes : ["Asking in a rigid tone."],
-        followUpTips: followUpTips.length > 0 ? followUpTips : ["Acknowledge and validate the response."]
+        followUpTips: followUpTips.length > 0 ? followUpTips : ["Acknowledge and validate the response."],
+        stealthIntegration
       };
     });
   }
@@ -2316,12 +2332,32 @@ export const CoachingView: React.FC<{ survey: Survey }> = ({ survey }) => {
                             <p className="text-[9px] font-black text-blue-400 uppercase">Natural Phrasing</p>
                             {coaching.naturalPhrasing.map((p, i) => <div key={i} className="text-xs text-white/70 glass-inset p-3 rounded-xl italic">{renderCoachingText(p, true)}</div>)}
                           </div>
+                          {coaching.stealthIntegration && (
+                            <div className="space-y-2">
+                              <p className="text-[9px] font-black text-green-400 uppercase">Stealth Integration (Ask Without Being Obvious)</p>
+                              <div className="text-xs text-white/70 glass-inset p-3 rounded-xl leading-relaxed">
+                                {renderCoachingText(coaching.stealthIntegration, false)}
+                              </div>
+                            </div>
+                          )}
+                          {coaching.followUpTips && coaching.followUpTips.length > 0 && (
+                            <div className="space-y-2">
+                              <p className="text-[9px] font-black text-purple-400 uppercase">Follow-Up & Probing Tips</p>
+                              <ul className="space-y-1.5">
+                                {coaching.followUpTips.map((t, i) => (
+                                  <li key={i} className="text-xs text-white/70 bg-white/5 p-2.5 rounded-xl border border-white/5">
+                                    {renderCoachingText(t, false)}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                           <div className="space-y-2">
                             <p className="text-[9px] font-black text-red-400 uppercase">Common Mistakes</p>
-                            <ul className="space-y-1">
+                            <ul className="space-y-1.5">
                               {coaching.commonMistakes.map((m, i) => (
-                                <li key={i} className="flex items-start gap-2 text-xs text-white/60 font-medium">
-                                  <VolumeX size={12} className="mt-0.5 flex-shrink-0" />
+                                <li key={i} className="flex items-start gap-2 text-xs text-white/60 font-medium bg-red-500/5 p-2.5 rounded-xl border border-red-500/10">
+                                  <VolumeX size={12} className="mt-0.5 flex-shrink-0 text-red-400" />
                                   <span>{renderCoachingText(m, false)}</span>
                                 </li>
                               ))}
@@ -3228,6 +3264,7 @@ describe('GroqService Response Parsing & Normalization', () => {
     expect(coaching.naturalPhrasing).toEqual(['How do you feel?']);
     expect(coaching.commonMistakes).toEqual(['Being rude']);
     expect(coaching.followUpTips).toEqual(['Be polite']);
+    expect(coaching.stealthIntegration).toBeDefined();
   });
 
   it('normalizes alternative phrasings when original keys are not present', async () => {
@@ -3237,7 +3274,8 @@ describe('GroqService Response Parsing & Normalization', () => {
           content: JSON.stringify({
             phrasings: ['How is your day?'],
             mistakes: ['Failing'],
-            follow_up_tips: ['Keep asking']
+            follow_up_tips: ['Keep asking'],
+            stealth_integration: 'Weave in casually'
           })
         }
       }]
@@ -3255,6 +3293,7 @@ describe('GroqService Response Parsing & Normalization', () => {
     expect(coaching.naturalPhrasing).toEqual(['How is your day?']);
     expect(coaching.commonMistakes).toEqual(['Failing']);
     expect(coaching.followUpTips).toEqual(['Keep asking']);
+    expect(coaching.stealthIntegration).toBe('Weave in casually');
   });
 });
 ```

@@ -328,7 +328,8 @@ export class MockAIService implements AIService {
       question: questionText,
       naturalPhrasing: data.phrasings,
       commonMistakes: data.mistakes,
-      followUpTips: data.tips
+      followUpTips: data.tips,
+      stealthIntegration: "Integrate this question casually during rapport building or when discussing their general background rather than asking it directly."
     };
   }
 
@@ -529,6 +530,14 @@ Return ONLY pure JSON matching this schema:
       'generateCoachingOverview'
     ).then(res => {
       res.surveyFlow = this.normalizeSurveyFlow(res.surveyFlow);
+      if (res.estimatedDuration) {
+        const raw = String(res.estimatedDuration);
+        const match = raw.match(/([0-9.]+)/);
+        if (match) {
+          const num = Math.round(parseFloat(match[1]));
+          res.estimatedDuration = `${num} minutes`;
+        }
+      }
       if (!res.participantPersona) {
         res.participantPersona = `Realistic roleplay participant for ${survey.name}. Be natural, brief, and authentic to a real human respondent without sounding like an AI assistant.`;
       } else if (typeof res.participantPersona === 'object') {
@@ -603,7 +612,8 @@ Return ONLY a JSON object with this exact structure:
   "followUpTips": [
     "A tip on how to handle responses or follow up",
     "Another follow-up tip"
-  ]
+  ],
+  "stealthIntegration": "A 1-2 sentence tactical recommendation on how to weave this topic/question naturally into a conversation without sounding like reading from a survey script."
 }`
           }
         ],
@@ -625,12 +635,17 @@ Return ONLY a JSON object with this exact structure:
                          Array.isArray(res.follow_up_tips) ? res.follow_up_tips :
                          Array.isArray(res.tips) ? res.tips : [];
 
+      const stealthIntegration = typeof res.stealthIntegration === 'string' ? res.stealthIntegration :
+                                 typeof res.stealth_integration === 'string' ? res.stealth_integration :
+                                 'Weave this topic naturally into conversation based on the participant\'s narrative.';
+
       return {
         questionId,
         question: questionText,
         naturalPhrasing: naturalPhrasing.length > 0 ? naturalPhrasing : ["Ask the question naturally and listen carefully."],
         commonMistakes: commonMistakes.length > 0 ? commonMistakes : ["Asking in a rigid tone."],
-        followUpTips: followUpTips.length > 0 ? followUpTips : ["Acknowledge and validate the response."]
+        followUpTips: followUpTips.length > 0 ? followUpTips : ["Acknowledge and validate the response."],
+        stealthIntegration
       };
     });
   }

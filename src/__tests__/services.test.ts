@@ -169,6 +169,7 @@ describe('GroqService Response Parsing & Normalization', () => {
     expect(coaching.naturalPhrasing).toEqual(['How do you feel?']);
     expect(coaching.commonMistakes).toEqual(['Being rude']);
     expect(coaching.followUpTips).toEqual(['Be polite']);
+    expect(coaching.stealthIntegration).toBeDefined();
   });
 
   it('normalizes alternative phrasings when original keys are not present', async () => {
@@ -178,7 +179,8 @@ describe('GroqService Response Parsing & Normalization', () => {
           content: JSON.stringify({
             phrasings: ['How is your day?'],
             mistakes: ['Failing'],
-            follow_up_tips: ['Keep asking']
+            follow_up_tips: ['Keep asking'],
+            stealth_integration: 'Weave in casually'
           })
         }
       }]
@@ -196,5 +198,6 @@ describe('GroqService Response Parsing & Normalization', () => {
     expect(coaching.naturalPhrasing).toEqual(['How is your day?']);
     expect(coaching.commonMistakes).toEqual(['Failing']);
     expect(coaching.followUpTips).toEqual(['Keep asking']);
+    expect(coaching.stealthIntegration).toBe('Weave in casually');
   });
 });

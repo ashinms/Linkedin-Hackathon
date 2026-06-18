@@ -285,12 +285,32 @@ export const CoachingView: React.FC<{ survey: Survey }> = ({ survey }) => {
                             <p className="text-[9px] font-black text-blue-400 uppercase">Natural Phrasing</p>
                             {coaching.naturalPhrasing.map((p, i) => <div key={i} className="text-xs text-white/70 glass-inset p-3 rounded-xl italic">{renderCoachingText(p, true)}</div>)}
                           </div>
+                          {coaching.stealthIntegration && (
+                            <div className="space-y-2">
+                              <p className="text-[9px] font-black text-green-400 uppercase">Stealth Integration (Ask Without Being Obvious)</p>
+                              <div className="text-xs text-white/70 glass-inset p-3 rounded-xl leading-relaxed">
+                                {renderCoachingText(coaching.stealthIntegration, false)}
+                              </div>
+                            </div>
+                          )}
+                          {coaching.followUpTips && coaching.followUpTips.length > 0 && (
+                            <div className="space-y-2">
+                              <p className="text-[9px] font-black text-purple-400 uppercase">Follow-Up & Probing Tips</p>
+                              <ul className="space-y-1.5">
+                                {coaching.followUpTips.map((t, i) => (
+                                  <li key={i} className="text-xs text-white/70 bg-white/5 p-2.5 rounded-xl border border-white/5">
+                                    {renderCoachingText(t, false)}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                           <div className="space-y-2">
                             <p className="text-[9px] font-black text-red-400 uppercase">Common Mistakes</p>
-                            <ul className="space-y-1">
+                            <ul className="space-y-1.5">
                               {coaching.commonMistakes.map((m, i) => (
-                                <li key={i} className="flex items-start gap-2 text-xs text-white/60 font-medium">
-                                  <VolumeX size={12} className="mt-0.5 flex-shrink-0" />
+                                <li key={i} className="flex items-start gap-2 text-xs text-white/60 font-medium bg-red-500/5 p-2.5 rounded-xl border border-red-500/10">
+                                  <VolumeX size={12} className="mt-0.5 flex-shrink-0 text-red-400" />
                                   <span>{renderCoachingText(m, false)}</span>
                                 </li>
                               ))}
