@@ -2826,6 +2826,15 @@ export const SchemesView: React.FC<{
     setShowAdd(false);
   };
 
+  const groupedByOrg = filtered.reduce((groups, item) => {
+    const org = item.organisation?.trim() || 'Other Services';
+    if (!groups[org]) {
+      groups[org] = [];
+    }
+    groups[org].push(item);
+    return groups;
+  }, {} as Record<string, CommunityInitiative[]>);
+
   return (
     <div className="p-6 space-y-6 pb-32 text-left font-sans">
       <div className="flex justify-between items-center">
@@ -2861,20 +2870,30 @@ export const SchemesView: React.FC<{
         ))}
       </div>
 
-      <div className="space-y-3">
-        {filtered.map(i => (
-          <div key={i.id} className="p-4 bg-white/5 rounded-2xl border border-white/10 space-y-3">
-            <div className="flex justify-between items-start">
-              <div>
-                <h4 className="font-bold text-white text-xs">{i.title}</h4>
-                <span className="text-[9px] text-white/40 uppercase font-bold">{i.organisation || "General Office"}</span>
-              </div>
-              <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 uppercase">{i.category}</span>
+      <div className="space-y-6">
+        {Object.entries(groupedByOrg).map(([orgName, items]) => (
+          <div key={orgName} className="space-y-3">
+            <div className="flex items-center gap-2 pl-1.5 border-l-2 border-blue-500">
+              <span className="text-[10px] font-black text-blue-400 uppercase tracking-wider">{orgName}</span>
+              <span className="text-[9px] px-1.5 py-0.2 bg-white/10 rounded-full text-white/60 font-bold">{items.length}</span>
             </div>
-            <p className="text-xs text-white/80 leading-relaxed">{i.description}</p>
-            <div className="text-[9px] text-white/40 border-t border-white/5 pt-2 font-bold uppercase"><span className="text-blue-400">Eligibility:</span> {i.eligibility}</div>
+            <div className="space-y-3">
+              {items.map(i => (
+                <div key={i.id} className="p-4 bg-white/5 rounded-2xl border border-white/10 space-y-3">
+                  <div className="flex justify-between items-start">
+                    <h4 className="font-bold text-white text-xs">{i.title}</h4>
+                    <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 uppercase">{i.category}</span>
+                  </div>
+                  <p className="text-xs text-white/80 leading-relaxed">{i.description}</p>
+                  <div className="text-[9px] text-white/40 border-t border-white/5 pt-2 font-bold uppercase"><span className="text-blue-400">Eligibility:</span> {i.eligibility}</div>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
+        {Object.keys(groupedByOrg).length === 0 && (
+          <p className="text-xs text-white/40 text-center py-6">No support schemes found in this category.</p>
+        )}
       </div>
     </div>
   );
