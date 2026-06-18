@@ -5,11 +5,6 @@ node_modules/
 dist/
 build/
 
-# Environment variables (contains private Groq API key)
-.env
-.env.local
-.env.*.local
-
 # TypeScript build caches
 *.tsbuildinfo
 
