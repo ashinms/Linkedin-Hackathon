@@ -246,7 +246,7 @@ export interface AIService {
   analyzeTranscript(transcript: string, survey: Survey): Promise<RecordingAnalysis>;
   generatePracticeResponse(userMessage: string, survey: Survey, history: any, persona?: string): Promise<string>;
   generatePracticeFeedback(transcript: string, survey: Survey, coachPersona?: string): Promise<any>;
-  matchReferrals(responses: Record<string, string>, initiatives: CommunityInitiative[]): Promise<ReferralRecommendation[]>;
+  matchReferrals(responses: Record<string, string>, initiatives: CommunityInitiative[], interviewerNotes?: string): Promise<ReferralRecommendation[]>;
   scourInitiativesForSurvey(survey: Survey): Promise<CommunityInitiative[]>;
 }
 
@@ -368,7 +368,7 @@ export class MockAIService implements AIService {
     };
   }
 
-  async matchReferrals(_responses: Record<string, string>, initiatives: CommunityInitiative[]): Promise<ReferralRecommendation[]> {
+  async matchReferrals(_responses: Record<string, string>, initiatives: CommunityInitiative[], _interviewerNotes?: string): Promise<ReferralRecommendation[]> {
     if (initiatives.length === 0) return [];
     return [{
       initiativeId: initiatives[0].id,
@@ -749,9 +749,9 @@ CRITICAL RULES: Stay in character. Never mention AI. Keep it to 1-3 natural conv
     });
   }
 
-  async matchReferrals(responses: Record<string, string>, initiatives: CommunityInitiative[]): Promise<ReferralRecommendation[]> {
+  async matchReferrals(responses: Record<string, string>, initiatives: CommunityInitiative[], interviewerNotes?: string): Promise<ReferralRecommendation[]> {
     if (initiatives.length === 0) return [];
-    const prompt = `Evaluate survey responses and match active local programs.\nResponses: ${JSON.stringify(responses)}\nActive Database: ${JSON.stringify(initiatives)}\nMatch reasons must be specific. Return JSON: { "referrals": [] }`;
+    const prompt = `Evaluate survey responses and match active local programs.\nResponses: ${JSON.stringify(responses)}\nInterviewer Notes: ${interviewerNotes || 'None'}\nActive Database: ${JSON.stringify(initiatives)}\nMatch reasons must be specific. Return JSON: { "referrals": [] }`;
 
     return this.callGroqJSON<{ referrals: ReferralRecommendation[] }>(
       () => this.groq!.chat.completions.create({

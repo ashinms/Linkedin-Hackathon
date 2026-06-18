@@ -27,7 +27,7 @@ function App() {
     setActiveTab('training');
   };
 
-  const handleSaveProfile = async (responses: Record<string, string>, analysis?: RecordingAnalysis) => {
+  const handleSaveProfile = async (responses: Record<string, string>, analysis?: RecordingAnalysis, interviewerNotes?: string) => {
     const questions = currentSurvey?.questions || [];
     const answeredCount = questions.filter(q => responses[q.fieldName]?.trim()).length;
     const completeness = Math.round((answeredCount / (questions.length || 1)) * 100);
@@ -40,6 +40,7 @@ function App() {
       responses,
       completeness,
       analysis,
+      interviewerNotes,
       referrals: undefined
     };
 
@@ -48,7 +49,7 @@ function App() {
 
     try {
       const aiService = createAIService();
-      const matched = await aiService.matchReferrals(responses, initiatives);
+      const matched = await aiService.matchReferrals(responses, initiatives, interviewerNotes);
       const refs = (matched || []).map(m => ({ ...m, selected: false, followedUp: false, status: 'Matched' as const }));
       setProfiles(prev => prev.map(prof => prof.id === profileId ? { ...p, referrals: refs, dispatchedEmails: [] } : prof));
     } catch {

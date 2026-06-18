@@ -83,6 +83,7 @@ export interface ParticipantProfile {
   analysis?: RecordingAnalysis;
   referrals?: ReferralRecommendation[];
   dispatchedEmails?: DispatchedEmail[];
+  interviewerNotes?: string;
 }
 
 export const DEFAULT_INITIATIVES: CommunityInitiative[] = [

@@ -6,7 +6,7 @@ import { Survey, RecordingAnalysis, isQuestionCovered } from '../types/survey';
 import { createAIService, createSpeechService } from '../services/services';
 import { Modal } from './Modal';
 
-export const RecordingView: React.FC<{ survey: Survey; onSaveProfile: (r: Record<string, string>, a?: RecordingAnalysis) => void }> = ({ survey, onSaveProfile }) => {
+export const RecordingView: React.FC<{ survey: Survey; onSaveProfile: (r: Record<string, string>, a?: RecordingAnalysis, n?: string) => void }> = ({ survey, onSaveProfile }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [analysis, setAnalysis] = useState<RecordingAnalysis | null>(null);
@@ -16,6 +16,7 @@ export const RecordingView: React.FC<{ survey: Survey; onSaveProfile: (r: Record
   const [permissionError, setPermissionError] = useState(false);
   const [coveredQuestions, setCoveredQuestions] = useState<Record<string, boolean>>({});
   const [showQuestionsList, setShowQuestionsList] = useState(true);
+  const [interviewerNotes, setInterviewerNotes] = useState('');
 
   const timerRef = useRef<any>();
   const aiService = useMemo(() => createAIService(), []);
@@ -45,6 +46,7 @@ export const RecordingView: React.FC<{ survey: Survey; onSaveProfile: (r: Record
     setLiveTranscript('');
     setAnalysis(null);
     setCoveredQuestions({});
+    setInterviewerNotes('');
     setPermissionError(false);
     try {
       await speechService.startListening(t => setLiveTranscript(t));
@@ -80,10 +82,11 @@ export const RecordingView: React.FC<{ survey: Survey; onSaveProfile: (r: Record
   const handleClarificationComplete = (clarified: Record<string, string>) => {
     if (analysis) {
       const final = { ...analysis.extractedResponses, ...clarified };
-      onSaveProfile(final, analysis);
+      onSaveProfile(final, analysis, interviewerNotes);
       setShowClarification(false);
       setAnalysis(null);
       setLiveTranscript('');
+      setInterviewerNotes('');
     }
   };
 
@@ -198,14 +201,47 @@ export const RecordingView: React.FC<{ survey: Survey; onSaveProfile: (r: Record
             </div>
           )}
 
-          <div className="glass-card rounded-3xl p-6 space-y-4">
-            <h3 className="font-black uppercase text-[10px] text-white">Extracted Answers</h3>
-            {Object.entries(analysis!.extractedResponses).map(([f, v], i) => (
-              <div key={i} className="flex justify-between border-b border-white/10 pb-2">
-                <span className="text-[9px] font-black text-blue-400 uppercase">{f}</span>
-                <span className="text-sm font-medium text-white/80">{v || "—"}</span>
-              </div>
-            ))}
+          <div className="glass-card rounded-3xl p-6 space-y-4 text-left">
+            <h3 className="font-black uppercase text-[10px] text-white">Extracted Answers (Edit if needed)</h3>
+            <div className="space-y-3">
+              {survey.questions.map((q, idx) => {
+                const val = analysis!.extractedResponses[q.fieldName] || '';
+                return (
+                  <div key={idx} className="space-y-1">
+                    <label className="text-[9px] font-black text-blue-400 uppercase block">{q.fieldName}</label>
+                    <input
+                      type="text"
+                      value={val}
+                      onChange={e => {
+                        setAnalysis(prev => {
+                          if (!prev) return null;
+                          return {
+                            ...prev,
+                            extractedResponses: {
+                              ...prev.extractedResponses,
+                              [q.fieldName]: e.target.value
+                            }
+                          };
+                        });
+                      }}
+                      className="w-full p-2.5 bg-slate-900/40 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-blue-500/30"
+                      placeholder="Add response..."
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="space-y-1.5 pt-2 border-t border-white/5">
+              <label className="text-[9px] font-black text-purple-400 uppercase block">Extra Notes by Interviewer</label>
+              <textarea
+                value={interviewerNotes}
+                onChange={e => setInterviewerNotes(e.target.value)}
+                rows={3}
+                placeholder="Add notes (AI will use this for scheme matching)..."
+                className="w-full p-3 bg-slate-900/40 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-blue-500/30 resize-none leading-relaxed"
+              />
+            </div>
           </div>
 
           <div className="flex gap-3">
