@@ -2965,9 +2965,9 @@ function App() {
     { id: 'home' as Tab, label: 'Import', icon: Upload },
     { id: 'training' as Tab, label: 'Training Lab', icon: Zap, disabled: !currentSurvey },
     { id: 'record' as Tab, label: 'Live Capture', icon: Mic, disabled: !currentSurvey },
-    { id: 'profiles' as Tab, label: 'Profiles', icon: Users, disabled: !currentSurvey },
-    { id: 'initiatives' as Tab, label: 'Outreach', icon: Sparkles, disabled: !currentSurvey },
-    { id: 'schemes' as Tab, label: 'Schemes', icon: Database, disabled: !currentSurvey },
+    { id: 'profiles' as Tab, label: 'Profiles', icon: Users },
+    { id: 'initiatives' as Tab, label: 'Outreach', icon: Sparkles },
+    { id: 'schemes' as Tab, label: 'Schemes', icon: Database },
   ];
 
   return (
