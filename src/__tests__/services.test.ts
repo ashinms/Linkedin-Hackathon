@@ -146,12 +146,16 @@ describe('GroqService Response Parsing & Normalization', () => {
     const flowObj = [
       { stepName: 'Intro', description: 'Introduce yourself' },
       { name: 'Core', desc: 'Ask questions' },
+      { id: 'Introduction', description: 'Build rapport' },
+      '{"id":"IntroductionJSON","description":"Build rapport JSON"}',
       'Closing'
     ];
     const result = normalizer(flowObj);
     expect(result[0]).toBe('Intro - Introduce yourself');
     expect(result[1]).toBe('Core - Ask questions');
-    expect(result[2]).toBe('Closing');
+    expect(result[2]).toBe('Introduction - Build rapport');
+    expect(result[3]).toBe('IntroductionJSON - Build rapport JSON');
+    expect(result[4]).toBe('Closing');
   });
 
   it('normalizes snake_case fields and phrasings fields to standard camelCase arrays', async () => {

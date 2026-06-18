@@ -573,14 +573,30 @@ Return ONLY pure JSON matching this schema:
     if (Array.isArray(flow)) {
       return flow.map((item) => {
         if (!item) return "";
-        if (typeof item === 'string') return item;
+        if (typeof item === 'string') {
+          try {
+            const trimmed = item.trim();
+            if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+              const parsed = JSON.parse(trimmed);
+              const stepName = parsed.id || parsed.stepName || parsed.name || parsed.step || parsed.title || parsed.label || parsed.phase || '';
+              const desc = parsed.description || parsed.desc || parsed.explanation || '';
+              if (stepName && desc) return `${stepName} - ${desc}`;
+              if (stepName) return stepName;
+              if (desc) return desc;
+            }
+          } catch {
+            // Treat as regular string
+          }
+          return item;
+        }
         if (typeof item === 'object') {
-          const stepName = item.stepName || item.name || item.step || item.title || item.label || '';
-          const desc = item.description || item.desc || '';
+          const stepName = item.id || item.stepName || item.name || item.step || item.title || item.label || item.phase || '';
+          const desc = item.description || item.desc || item.explanation || '';
           if (stepName && desc) {
             return `${stepName} - ${desc}`;
           }
           if (stepName) return stepName;
+          if (desc) return desc;
           
           const keys = Object.keys(item);
           if (keys.length === 1) return `${keys[0]}: ${typeof item[keys[0]] === 'object' ? JSON.stringify(item[keys[0]]) : item[keys[0]]}`;
