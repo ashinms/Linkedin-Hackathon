@@ -805,20 +805,73 @@ CRITICAL RULES: Stay in character. Never mention AI. Keep it to 1-3 natural conv
 
   async matchReferrals(responses: Record<string, string>, initiatives: CommunityInitiative[], interviewerNotes?: string): Promise<ReferralRecommendation[]> {
     if (initiatives.length === 0) return [];
-    const prompt = `Evaluate survey responses and match active local programs.\nResponses: ${JSON.stringify(responses)}\nInterviewer Notes: ${interviewerNotes || 'None'}\nActive Database: ${JSON.stringify(initiatives)}\nMatch reasons must be specific. Return JSON: { "referrals": [] }`;
+    
+    const prompt = `You are an expert social services referral assistant in Singapore.
+Evaluate the following participant's survey responses and notes against the database of active support schemes.
+
+Participant Survey Responses:
+${JSON.stringify(responses, null, 2)}
+
+Interviewer Notes:
+${interviewerNotes || 'None'}
+
+Active Database of Support Schemes:
+${JSON.stringify(initiatives, null, 2)}
+
+Please match the participant to any relevant schemes in the database. For each match, you must extract:
+1. initiativeId: The exact ID of the initiative from the database (e.g., "init-1", "init-2")
+2. initiativeTitle: The exact title of the initiative (e.g., "ComCare Short-to-Medium Term Assistance (SMTA)")
+3. category: The category of the initiative
+4. matchReason: A specific explanation of why this scheme matches the participant's profile and eligibility criteria
+5. priority: Either "High", "Medium", or "Low" based on the urgency of their situation and criteria fit
+
+Return a JSON object in this exact structure:
+{
+  "referrals": [
+    {
+      "initiativeId": "initiative ID",
+      "initiativeTitle": "initiative title",
+      "category": "initiative category",
+      "matchReason": "detailed matching explanation",
+      "priority": "High" | "Medium" | "Low"
+    }
+  ]
+}`;
 
     return this.callGroqJSON<{ referrals: ReferralRecommendation[] }>(
       () => this.groq!.chat.completions.create({
         model: 'llama-3.1-8b-instant',
         messages: [
-          { role: 'system', content: 'Outreach matcher coordinator. JSON only.' },
+          { role: 'system', content: 'You are an outreach matching coordinator. You must only return valid JSON matching the schema.' },
           { role: 'user', content: prompt }
         ],
         response_format: { type: 'json_object' }
       }),
       async () => ({ referrals: await this.mockService.matchReferrals(responses, initiatives) }),
       'matchReferrals'
-    ).then(res => Array.isArray(res.referrals) ? res.referrals : []);
+    ).then(res => {
+      if (res && Array.isArray(res.referrals)) {
+        return res.referrals.map((r: any) => {
+          const matchedId = r.initiativeId || r.id || '';
+          const matchedTitle = r.initiativeTitle || r.title || r.program || '';
+          const matchedCategory = r.category || '';
+          const matchedReason = r.matchReason || r.reason || 'Matched based on survey answers.';
+          const matchedPriority = (r.priority === 'High' || r.priority === 'Medium' || r.priority === 'Low') ? r.priority : 'Medium';
+          
+          return {
+            initiativeId: String(matchedId),
+            initiativeTitle: String(matchedTitle),
+            category: String(matchedCategory),
+            matchReason: String(matchedReason),
+            priority: matchedPriority,
+            selected: false,
+            followedUp: false,
+            status: 'Matched' as const
+          };
+        }).filter(r => r.initiativeId && r.initiativeTitle);
+      }
+      return [];
+    });
   }
 
   async scourInitiativesForSurvey(survey: Survey): Promise<CommunityInitiative[]> {
