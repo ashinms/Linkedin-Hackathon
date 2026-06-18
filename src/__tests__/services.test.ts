@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getDiceCoefficient, isQuestionCovered } from '../types/survey';
+import { getDiceCoefficient, isQuestionCovered, alignExtractedResponses } from '../types/survey';
 import { FileParser, GroqService, MockAIService } from '../services/services';
 
 // Mock File class since it might not be fully available in Node environment
@@ -250,5 +250,47 @@ describe('GroqService Response Parsing & Normalization', () => {
     const feedback = await service.generatePracticeFeedback('some transcript', survey);
     expect(feedback.totalQuestions).toBe(3);
     expect(feedback.questionsAsked).toBe(4);
+  });
+});
+
+describe('alignExtractedResponses', () => {
+  const questions = [
+    { id: '1', fieldName: 'Full Name (as in NRIC)', type: 'string' as const },
+    { id: '2', fieldName: 'Age', type: 'string' as const },
+    { id: '3', fieldName: 'Monthly Household Income', type: 'string' as const }
+  ];
+
+  it('aligns exact matches and case-insensitive matches', () => {
+    const extracted = {
+      'Full Name (as in NRIC)': 'John Doe',
+      'age': '30',
+      'Monthly Household Income': '2500'
+    };
+    const result = alignExtractedResponses(extracted, questions);
+    expect(result['Full Name (as in NRIC)']).toBe('John Doe');
+    expect(result['Age']).toBe('30');
+    expect(result['Monthly Household Income']).toBe('2500');
+  });
+
+  it('aligns fuzzy substring matches', () => {
+    const extracted = {
+      'Name': 'John Doe',
+      'Household Income': '1500'
+    };
+    const result = alignExtractedResponses(extracted, questions);
+    expect(result['Full Name (as in NRIC)']).toBe('John Doe');
+    expect(result['Monthly Household Income']).toBe('1500');
+  });
+
+  it('aligns question index-based keys', () => {
+    const extracted = {
+      'q1': 'John Doe',
+      'qn2': '40',
+      '3': '3000'
+    };
+    const result = alignExtractedResponses(extracted, questions);
+    expect(result['Full Name (as in NRIC)']).toBe('John Doe');
+    expect(result['Age']).toBe('40');
+    expect(result['Monthly Household Income']).toBe('3000');
   });
 });

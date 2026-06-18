@@ -42,6 +42,7 @@ export interface RecordingAnalysis {
     actionableTips: string[];
   };
   needsAndWants?: string[];
+  detailedFeedback?: { category: string; score: number; feedback: string }[];
 }
 
 export interface CommunityInitiative {
@@ -251,4 +252,126 @@ export const isQuestionCovered = (messageText: string, questionText: string): bo
   const fuzzyRatio = fuzzyMatchCount / qKeywords.length;
   const fuzzyThreshold = qKeywords.length <= 2 ? 0.5 : 0.6;
   return fuzzyRatio >= fuzzyThreshold;
+};
+
+export const alignExtractedResponses = (
+  extracted: Record<string, string>,
+  questions: Question[]
+): Record<string, string> => {
+  const aligned: Record<string, string> = {};
+  
+  // 1. Initialize all questions with empty string first
+  questions.forEach(q => {
+    aligned[q.fieldName] = '';
+  });
+
+  if (!extracted) return aligned;
+
+  const extractedKeys = Object.keys(extracted);
+  const matchedKeys = new Set<string>();
+
+  // Helper for cleaning strings
+  const cleanStr = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+
+  // Step 2: Look for exact or case-insensitive exact matches
+  questions.forEach(q => {
+    const qClean = cleanStr(q.fieldName);
+    
+    // Find key with exact match
+    if (extracted[q.fieldName] !== undefined) {
+      aligned[q.fieldName] = extracted[q.fieldName];
+      matchedKeys.add(q.fieldName);
+      return;
+    }
+
+    const matchedKey = extractedKeys.find(k => cleanStr(k) === qClean);
+    if (matchedKey) {
+      aligned[q.fieldName] = extracted[matchedKey];
+      matchedKeys.add(matchedKey);
+    }
+  });
+
+  // Step 3: Match by number/index indicators (e.g. "q1", "question 1", "1" matching first question)
+  questions.forEach((q, idx) => {
+    if (aligned[q.fieldName]) return; // Already matched
+    
+    const qNum = idx + 1;
+    const numPatterns = [
+      `q${qNum}`,
+      `question${qNum}`,
+      `question_${qNum}`,
+      `qn${qNum}`,
+      `${qNum}`
+    ];
+
+    const matchedKey = extractedKeys.find(k => {
+      if (matchedKeys.has(k)) return false;
+      const cleanedK = cleanStr(k);
+      return numPatterns.includes(cleanedK);
+    });
+
+    if (matchedKey) {
+      aligned[q.fieldName] = extracted[matchedKey];
+      matchedKeys.add(matchedKey);
+    }
+  });
+
+  // Step-4: Substring matching or dice coefficient fuzzy matching
+  questions.forEach(q => {
+    if (aligned[q.fieldName]) return; // Already matched
+    
+    const qClean = cleanStr(q.fieldName);
+    let bestKey: string | null = null;
+    let highestScore = 0;
+
+    extractedKeys.forEach(k => {
+      if (matchedKeys.has(k)) return;
+      const kClean = cleanStr(k);
+      
+      // If one is substring of another, give it high matching weight
+      if (qClean.includes(kClean) && kClean.length >= 3) {
+        const score = kClean.length / qClean.length;
+        if (score > highestScore) {
+          highestScore = score;
+          bestKey = k;
+        }
+      } else if (kClean.includes(qClean) && qClean.length >= 3) {
+        const score = qClean.length / kClean.length;
+        if (score > highestScore) {
+          highestScore = score;
+          bestKey = k;
+        }
+      } else {
+        // Calculate dice coefficient
+        const dice = getDiceCoefficient(qClean, kClean);
+        if (dice > 0.4 && dice > highestScore) {
+          highestScore = dice;
+          bestKey = k;
+        }
+      }
+    });
+
+    if (bestKey && highestScore > 0.3) {
+      aligned[q.fieldName] = extracted[bestKey];
+      matchedKeys.add(bestKey);
+    }
+  });
+
+  // Step 5: Fill remaining values if any extracted keys are left unmatched and match by index order
+  questions.forEach((q, idx) => {
+    if (aligned[q.fieldName]) return;
+    
+    // If there is an unmatched key at the same index in the extracted keys
+    const unmatchedKeys = extractedKeys.filter(k => !matchedKeys.has(k));
+    // Try matching if the key has similar position
+    if (unmatchedKeys.length > 0 && idx < extractedKeys.length) {
+      const candidateKey = extractedKeys[idx];
+      if (!matchedKeys.has(candidateKey)) {
+        aligned[q.fieldName] = extracted[candidateKey];
+        matchedKeys.add(candidateKey);
+      }
+    }
+  });
+
+  return aligned;
 };

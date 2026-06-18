@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   CheckCircle, Square, Mic, ChevronDown, CheckSquare, AlertCircle, MicOff, Lightbulb 
 } from 'lucide-react';
-import { Survey, RecordingAnalysis, isQuestionCovered } from '../types/survey';
+import { Survey, RecordingAnalysis, isQuestionCovered, alignExtractedResponses } from '../types/survey';
 import { createAIService, createSpeechService } from '../services/services';
 import { Modal } from './Modal';
 
@@ -70,6 +70,9 @@ export const RecordingView: React.FC<{ survey: Survey; onSaveProfile: (r: Record
       }
       setIsAnalyzing(true);
       const res = await aiService.analyzeTranscript(text, survey);
+      if (res && res.extractedResponses) {
+        res.extractedResponses = alignExtractedResponses(res.extractedResponses, survey.questions);
+      }
       setAnalysis(res);
       if ((res.unclearQuestions && res.unclearQuestions.length > 0) || (res.unansweredQuestions && res.unansweredQuestions.length > 0)) {
         setShowClarification(true);
@@ -170,6 +173,32 @@ export const RecordingView: React.FC<{ survey: Survey; onSaveProfile: (r: Record
             <div className={`text-6xl font-black mb-2 ${analysis!.score >= 80 ? 'text-green-400' : 'text-amber-400'}`}>{analysis!.score}%</div>
             <p className="text-xs font-black uppercase text-white/70">Transcription Quality</p>
           </div>
+
+          {analysis!.detailedFeedback && analysis!.detailedFeedback.length > 0 && (
+            <div className="glass-card rounded-3xl p-6 space-y-4">
+              <h3 className="font-black uppercase tracking-widest text-[10px] text-white/60">Quality Breakdown</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {analysis!.detailedFeedback.map((df, i) => {
+                  const scoreColor = df.score >= 85 ? 'text-green-400' : df.score >= 70 ? 'text-amber-400' : 'text-rose-400';
+                  const barColor = df.score >= 85 ? 'bg-green-500' : df.score >= 70 ? 'bg-amber-500' : 'bg-rose-500';
+                  return (
+                    <div key={i} className="glass-inset rounded-2xl p-4 space-y-3 flex flex-col justify-between hover:border-white/10 transition-all border border-transparent">
+                      <div>
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="text-[10px] font-black text-white/90 leading-tight pr-2">{df.category}</span>
+                          <span className={`text-[10px] font-mono font-black ${scoreColor}`}>{df.score}%</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-2">
+                          <div className={`h-full ${barColor} transition-all duration-500`} style={{ width: `${df.score}%` }} />
+                        </div>
+                        <p className="text-[11px] text-white/60 leading-normal">{df.feedback}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {analysis!.improvementAnalysis && (
             <div className="glass-card rounded-3xl p-6 space-y-4">

@@ -333,18 +333,34 @@ export class MockAIService implements AIService {
     };
   }
 
-  async analyzeTranscript(_t: string, _s: Survey): Promise<RecordingAnalysis> {
+  async analyzeTranscript(_t: string, survey: Survey): Promise<RecordingAnalysis> {
+    const extracted: Record<string, string> = {};
+    if (survey && survey.questions) {
+      survey.questions.forEach((q, idx) => {
+        if (idx === 0) extracted[q.fieldName] = "Alex Chen";
+        else if (idx === 1) extracted[q.fieldName] = "34";
+        else if (q.fieldName.toLowerCase().includes('income') || q.fieldName.toLowerCase().includes('salary')) extracted[q.fieldName] = "$1,500";
+        else if (q.fieldName.toLowerCase().includes('employment') || q.fieldName.toLowerCase().includes('job')) extracted[q.fieldName] = "Unemployed";
+        else extracted[q.fieldName] = `Mock response for ${q.fieldName}`;
+      });
+    }
+
     return {
       score: 85,
-      answeredQuestions: [],
+      answeredQuestions: survey?.questions.map(q => q.fieldName) || [],
       unansweredQuestions: [],
       unclearQuestions: [],
-      extractedResponses: {},
+      extractedResponses: extracted,
       improvementAnalysis: {
         strengths: ['Active listening', 'Polite tone'],
         weaknesses: ['Missed standard phrasing templates'],
         actionableTips: ['Confirm participant details clearly']
-      }
+      },
+      detailedFeedback: [
+        { category: 'Conversational Flow', score: 88, feedback: 'Great flow, allowed the participant to share their stories without interruption.' },
+        { category: 'Clarity & Rephrasing', score: 80, feedback: 'Rephrased questions well, though a few standard prompts could be tighter.' },
+        { category: 'Empathy & Active Listening', score: 90, feedback: 'Validated answers and showed strong emotional support.' }
+      ]
     };
   }
 
@@ -658,31 +674,69 @@ Return ONLY a JSON object with this exact structure:
   }
 
   async analyzeTranscript(transcript: string, survey: Survey): Promise<RecordingAnalysis> {
+    const prompt = `Analyze interview transcript for survey "${survey.name}".
+Transcript: "${transcript}"
+
+Please evaluate the interviewer's performance and extract the participant's answers.
+
+Survey Questions to extract:
+${survey.questions.map(q => `- ${q.fieldName} (${q.type})`).join('\n')}
+
+Return JSON in this format:
+{
+  "score": 0-100, // Quality score for the interviewer
+  "answeredQuestions": ["fieldName"], 
+  "unansweredQuestions": ["fieldName"],
+  "unclearQuestions": ["fieldName"],
+  "extractedResponses": {
+    "question fieldName": "extracted answer value" // Use the exact fieldName or close match as the key
+  },
+  "improvementAnalysis": {
+    "strengths": ["string"],
+    "weaknesses": ["string"],
+    "actionableTips": ["string"]
+  },
+  "needsAndWants": ["string"],
+  "detailedFeedback": [
+    { "category": "Conversational Flow", "score": 0-100, "feedback": "feedback text" },
+    { "category": "Clarity & Rephrasing", "score": 0-100, "feedback": "feedback text" },
+    { "category": "Empathy & Active Listening", "score": 0-100, "feedback": "feedback text" }
+  ]
+}`;
+
     return this.callGroqJSON<RecordingAnalysis>(
       () => this.groq!.chat.completions.create({
         model: 'llama-3.1-8b-instant',
         messages: [
           { role: 'system', content: 'Precise semantic text extractor and quality evaluator. JSON only.' },
-          {
-            role: 'user',
-            content: `Analyze interview transcript for survey "${survey.name}".\nTranscript: "${transcript}"\nEvaluate interviewer only. Return JSON:\n{ "score": 0-100, "extractedResponses": { ... }, "improvementAnalysis": { "strengths": [], "weaknesses": [], "actionableTips": [] }, "needsAndWants": [] }`
-          }
+          { role: 'user', content: prompt }
         ],
         response_format: { type: 'json_object' }
       }),
       () => this.mockService.analyzeTranscript(transcript, survey),
       'analyzeTranscript'
     ).then(res => {
-      if (res && res.improvementAnalysis) {
-        const imp = res.improvementAnalysis;
-        if (Array.isArray(imp.strengths)) {
-          imp.strengths = imp.strengths.map((s: any) => typeof s === 'object' ? s.description || s.text || s.strength || JSON.stringify(s) : String(s));
+      if (res) {
+        if (res.improvementAnalysis) {
+          const imp = res.improvementAnalysis;
+          if (Array.isArray(imp.strengths)) {
+            imp.strengths = imp.strengths.map((s: any) => typeof s === 'object' ? s.description || s.text || s.strength || JSON.stringify(s) : String(s));
+          }
+          if (Array.isArray(imp.weaknesses)) {
+            imp.weaknesses = imp.weaknesses.map((w: any) => typeof w === 'object' ? w.description || w.text || w.weakness || JSON.stringify(w) : String(w));
+          }
+          if (Array.isArray(imp.actionableTips)) {
+            imp.actionableTips = imp.actionableTips.map((t: any) => typeof t === 'object' ? t.description || t.text || t.tip || JSON.stringify(t) : String(t));
+          }
         }
-        if (Array.isArray(imp.weaknesses)) {
-          imp.weaknesses = imp.weaknesses.map((w: any) => typeof w === 'object' ? w.description || w.text || w.weakness || JSON.stringify(w) : String(w));
-        }
-        if (Array.isArray(imp.actionableTips)) {
-          imp.actionableTips = imp.actionableTips.map((t: any) => typeof t === 'object' ? t.description || t.text || t.tip || JSON.stringify(t) : String(t));
+        if (Array.isArray(res.detailedFeedback)) {
+          res.detailedFeedback = res.detailedFeedback.map((df: any) => {
+            return {
+              category: String(df.category || df.name || 'General'),
+              score: typeof df.score === 'number' ? df.score : parseInt(String(df.score || 0), 10),
+              feedback: String(df.feedback || df.description || df.text || '')
+            };
+          });
         }
       }
       return res;
