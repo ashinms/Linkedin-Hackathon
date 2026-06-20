@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  ChevronDown, ChevronUp, CheckCircle, CheckSquare, Square, Send, Sparkles 
+  ChevronDown, ChevronUp, CheckCircle, CheckSquare, Square, Send, Sparkles, Brain, Download 
 } from 'lucide-react';
 import { Survey, ParticipantProfile, DispatchedEmail, CommunityInitiative } from '../types/survey';
 
@@ -98,6 +98,55 @@ export const InitiativesView: React.FC<InitiativesViewProps> = ({ survey, profil
       return `https://wa.me/${cleanedPhone}?text=${encodedText}`;
     }
     return `https://wa.me/?text=${encodedText}`;
+  };
+
+  const getChatchatBrainPayload = () => {
+    const pName = selectedProfile ? selectedProfile.responses[survey?.questions[0]?.fieldName || ''] || 'Participant' : 'Participant';
+    const emailField = survey?.questions.find(q => q.fieldName.toLowerCase().includes('email'))?.fieldName || '';
+    const participantEmail = selectedProfile ? selectedProfile.responses[emailField] || `${pName.toLowerCase().replace(/\s+/g, '.')}@gmail.com` : 'N/A';
+    
+    let payload = `# CARE-O Outreach Profile: ${pName}\n`;
+    payload += `- **Record Date**: ${new Date(selectedProfile?.timestamp || Date.now()).toLocaleString()}\n`;
+    payload += `- **Contact Phone**: ${participantPhone || 'N/A'}\n`;
+    payload += `- **Contact Email**: ${participantEmail}\n`;
+    payload += `- **Assessed Emergency Needs**:\n`;
+    payload += `  - Shelter/Housing Needed: ${activeNeeds.shelter ? 'YES' : 'NO'}\n`;
+    payload += `  - Financial/SSO Assistance Needed: ${activeNeeds.financial ? 'YES' : 'NO'}\n`;
+    payload += `  - Medical Outreach Needed: ${activeNeeds.medical ? 'YES' : 'NO'}\n`;
+    payload += `  - Food Support Needed: ${activeNeeds.food ? 'YES' : 'NO'}\n\n`;
+
+    payload += `## Matched Support Schemes & Referrals:\n`;
+    if (matchedReferrals.length === 0) {
+      payload += `_No schemes matched yet._\n`;
+    } else {
+      matchedReferrals.forEach((ref, idx) => {
+        payload += `### ${idx + 1}. ${ref.initiativeTitle}\n`;
+        payload += `- **Category**: ${ref.category}\n`;
+        payload += `- **Pipeline Status**: ${ref.status || 'Matched'}\n`;
+        payload += `- **Matching Reason**: ${ref.matchReason}\n\n`;
+      });
+    }
+
+    payload += `## Chatchat Integration Directives:\n`;
+    payload += `1. **Gmail Integration**: Draft and dispatch a confirmation email to the participant at \`${participantEmail}\` summarizing these matched resources.\n`;
+    payload += `2. **Organization Routing**: Trigger outreach request to relevant social service organizations for high priority needs.\n`;
+    payload += `3. **Memory Storage**: Save this profile to the living brain to track recurring cases and outreach performance.`;
+
+    return payload;
+  };
+
+  const downloadBrainPayload = () => {
+    const pName = selectedProfile ? selectedProfile.responses[survey?.questions[0]?.fieldName || ''] || 'Participant' : 'Participant';
+    const payload = getChatchatBrainPayload();
+    const blob = new Blob([payload], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `chatchat-brain-${pName.toLowerCase().replace(/\s+/g, '-')}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const cleanPhoneNumber = (phone: string) => {
@@ -400,6 +449,49 @@ export const InitiativesView: React.FC<InitiativesViewProps> = ({ survey, profil
             <WhatsAppIcon size={12} />
             <span>Send WhatsApp</span>
           </a>
+        </div>
+      </div>
+
+      {/* Chatchat Living Brain Integration Card */}
+      <div className="glass-card rounded-[2rem] p-6 space-y-4 border border-white/5 text-left font-sans">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Brain size={18} className="text-purple-400 animate-pulse" />
+            <h3 className="text-xs font-black text-white uppercase tracking-wider">Chatchat Living Brain</h3>
+          </div>
+          <span className="text-[8px] font-black uppercase bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded">Brain Memory Payload</span>
+        </div>
+
+        <p className="text-[10px] text-white/60 leading-normal">
+          Upload this structured participant memory file directly into your Chatchat agent's <strong>Living Brain</strong> to feed its database and automate integrations like Gmail, routing queues, and social services.
+        </p>
+
+        {/* Payload Preview */}
+        <div className="space-y-1.5 pt-1">
+          <span className="block text-[8px] font-black text-purple-400 uppercase tracking-widest">Brain Payload Preview (.md)</span>
+          <div className="p-4 bg-slate-950/80 border border-white/5 rounded-2xl text-[10px] text-white/70 font-mono leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto select-all">
+            {getChatchatBrainPayload()}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-2.5 pt-1">
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(getChatchatBrainPayload());
+              alert("Chatchat living brain payload copied!");
+            }}
+            className="flex-1 py-3 glass-button rounded-xl text-[10px] font-black uppercase text-white/90 tracking-wide hover:scale-[1.01] active:scale-[0.99] transition-all"
+          >
+            Copy Payload
+          </button>
+          <button
+            onClick={downloadBrainPayload}
+            className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wide flex items-center justify-center gap-1.5 shadow-lg shadow-purple-500/10 hover:scale-[1.01] active:scale-[0.99] transition-all"
+          >
+            <Download size={12} />
+            <span>Download .MD File</span>
+          </button>
         </div>
       </div>
 
