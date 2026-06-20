@@ -4,7 +4,8 @@ import {
   ChevronDown, ChevronUp, CheckCircle, CheckSquare, Square, Send, Brain, Download, 
   MessageSquare, AlertTriangle, Clock, ListTodo, ShieldAlert, FileText, UserCheck, RefreshCw, Compass,
   X, RotateCcw, Trash2, Plus, Type, ArrowRight, AlertCircle, MicOff, Lightbulb, User, Edit2, 
-  Save, CheckCircle2, Loader2, ClipboardList, TrendingUp, Keyboard, Phone, MessageCircle, Award, VolumeX
+  Save, CheckCircle2, Loader2, ClipboardList, TrendingUp, Keyboard, Phone, MessageCircle, Award, VolumeX,
+  Sun, Moon
 } from 'lucide-react';
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -1341,22 +1342,36 @@ Return JSON with this exact schema:
         res.totalQuestions = survey.questions.length;
         res.questionsAsked = typeof res.questionsAsked === 'number' ? res.questionsAsked : parseInt(String(res.questionsAsked || 0), 10);
         
-        if (Array.isArray(res.improvements)) {
-          res.improvements = res.improvements.map((item: any) => {
-            if (item && typeof item === 'object') {
-              return item.description || item.text || item.improvement || JSON.stringify(item);
-            }
-            return String(item);
-          });
+        // Normalize alternative keys
+        if (!res.strengths && res.strength) {
+          res.strengths = Array.isArray(res.strength) ? res.strength : [res.strength];
         }
-        if (Array.isArray(res.strengths)) {
-          res.strengths = res.strengths.map((item: any) => {
-            if (item && typeof item === 'object') {
-              return item.description || item.text || item.strength || JSON.stringify(item);
-            }
-            return String(item);
-          });
+        if (!res.improvements && res.improvement) {
+          res.improvements = Array.isArray(res.improvement) ? res.improvement : [res.improvement];
         }
+        if (!res.improvements && res.weaknesses) {
+          res.improvements = Array.isArray(res.weaknesses) ? res.weaknesses : [res.weaknesses];
+        }
+        if (!res.improvements && res.areas_for_improvement) {
+          res.improvements = Array.isArray(res.areas_for_improvement) ? res.areas_for_improvement : [res.areas_for_improvement];
+        }
+
+        if (!Array.isArray(res.strengths)) res.strengths = [];
+        if (!Array.isArray(res.improvements)) res.improvements = [];
+
+        res.improvements = res.improvements.map((item: any) => {
+          if (item && typeof item === 'object') {
+            return item.description || item.text || item.improvement || JSON.stringify(item);
+          }
+          return String(item);
+        });
+
+        res.strengths = res.strengths.map((item: any) => {
+          if (item && typeof item === 'object') {
+            return item.description || item.text || item.strength || JSON.stringify(item);
+          }
+          return String(item);
+        });
       }
       return res;
     });
@@ -1459,8 +1474,9 @@ Return a JSON object in this exact structure:
     }
 
     const profileSummaries = profiles.map((p, index) => {
-      const name = p.responses[survey.questions[0]?.fieldName || ''] || `Participant ${index + 1}`;
-      const briefResponses = Object.entries(p.responses)
+      const qFieldName = survey?.questions?.[0]?.fieldName || '';
+      const name = (p.responses || {})[qFieldName] || `Participant ${index + 1}`;
+      const briefResponses = Object.entries(p.responses || {})
         .map(([q, a]) => `- ${q}: ${a}`)
         .join('\n');
       const referrals = (p.referrals || [])
@@ -1656,7 +1672,8 @@ export const HomeView: React.FC<{
   surveys: Survey[];
   currentSurvey: Survey | null;
   onSelectSurvey: (survey: Survey) => void;
-}> = ({ onSurveyUpload, surveys, currentSurvey, onSelectSurvey }) => {
+  onLoadDemoData: () => void;
+}> = ({ onSurveyUpload, surveys, currentSurvey, onSelectSurvey, onLoadDemoData }) => {
   const [surveyText, setSurveyText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [inputMode, setInputMode] = useState<'text' | 'file'>('text');
@@ -1861,6 +1878,22 @@ export const HomeView: React.FC<{
       <div className="text-center mb-6 pt-6">
         <h1 className="text-5xl font-black text-white mb-2 tracking-tighter uppercase drop-shadow-lg" title="Conversational Assessment & Routing Engine for Outreach">CARE-O</h1>
         <p className="text-white/80 text-xs font-semibold max-w-xs mx-auto leading-normal tracking-wide uppercase">Conversational Assessment & Routing Engine for Outreach</p>
+      </div>
+
+      <div className="max-w-2xl mx-auto p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-blue-500/20 rounded-xl text-blue-400"><Sparkles size={20} className="animate-pulse" /></div>
+          <div>
+            <span className="block text-[8px] font-black text-blue-400 uppercase tracking-widest">Demo Sandbox Mode</span>
+            <span className="text-xs font-bold text-white block">Explore with loaded mock data & insights</span>
+          </div>
+        </div>
+        <button
+          onClick={onLoadDemoData}
+          className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-[9px] tracking-wider rounded-xl transition-all shadow-md active:scale-95"
+        >
+          Load Mock Data
+        </button>
       </div>
 
       {currentSurvey && (
@@ -2361,9 +2394,9 @@ export const CoachingView: React.FC<{ survey: Survey }> = ({ survey }) => {
       const basePersona = overview?.participantPersona || "A regular survey participant.";
       const personaPrompts = {
         default: "",
-        elderly: "Persona: You are Mr. Tan, a 74-year-old retired senior citizen. You speak slowly, sometimes get confused, share long nostalgic stories about the neighborhood, and require the interviewer to speak clearly and rephrase technical terms.",
-        busy: "Persona: You are Sarah, a 38-year-old working mother of three. You are highly distracted, multi-tasking during the conversation, give short answers, and want the interview to end quickly because your toddler is crying.",
-        stressed: "Persona: You are Raju, a 42-year-old delivery rider. You are highly stressed, insecure about your finances, and extremely hesitant to share your exact income range or personal contact details unless the interviewer handles the topic with extreme confidentiality and empathy."
+        elderly: "Persona: You are Mr. Tan, a 74-year-old retired senior citizen.",
+        busy: "Persona: You are Nadia, a 38-year-old working mother.",
+        stressed: "Persona: You are Raju, a 42-year-old delivery rider."
       };
       const moodPrompts = {
         cooperative: "Mood: You are friendly, cooperative, warm, and speak in a polite tone.",
@@ -2660,9 +2693,9 @@ export const CoachingView: React.FC<{ survey: Survey }> = ({ survey }) => {
                   <div className="grid grid-cols-2 gap-2">
                     {[
                       { id: 'default', label: 'Default', desc: 'Standard Profile' },
-                      { id: 'elderly', label: 'Elderly Tan', desc: '74y, slow speaker' },
-                      { id: 'busy', label: 'Busy Sarah', desc: '38y, multi-tasker' },
-                      { id: 'stressed', label: 'Stressed Raju', desc: '42y, hesitant rider' },
+                      { id: 'elderly', label: 'Elderly Tan', desc: '74y, retired' },
+                      { id: 'busy', label: 'Busy Nadia', desc: '38y, working mother' },
+                      { id: 'stressed', label: 'Stressed Raju', desc: '42y, delivery rider' },
                     ].map(p => (
                       <button
                         key={p.id}
@@ -3055,6 +3088,20 @@ export const InitiativesView: React.FC<InitiativesViewProps> = ({ survey, profil
   const selectedProfile = profiles.find(p => p.id === selectedProfileId);
   const matchedReferrals = selectedProfile?.referrals || [];
 
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const unusedInitiatives = initiatives.filter(init => 
+    !matchedReferrals.some(ref => ref.initiativeId === init.id)
+  );
+
+  const searchedInitiatives = searchQuery.trim() === ''
+    ? []
+    : unusedInitiatives.filter(init => 
+        init.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        init.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        init.description.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+
   const [manualNeeds, setManualNeeds] = useState<{
     shelter: boolean | null;
     financial: boolean | null;
@@ -3086,6 +3133,26 @@ export const InitiativesView: React.FC<InitiativesViewProps> = ({ survey, profil
 
   const getWhatsAppTemplateMessage = () => {
     const pName = selectedProfile ? selectedProfile.responses[survey?.questions[0]?.fieldName || ''] || 'Participant' : 'Participant';
+    
+    // Selected Matched Schemes
+    const selectedRefs = matchedReferrals.filter(ref => ref.selected);
+    const schemesBlocks: string[] = [];
+    selectedRefs.forEach(ref => {
+      const initDetails = initiatives?.find(i => i.id === ref.initiativeId);
+      let block = `📋 *${ref.initiativeTitle}* (${ref.category})\nReason: ${ref.matchReason}`;
+      if (initDetails) {
+        if (initDetails.contactPhone) block += `\n📞 Phone: ${initDetails.contactPhone}`;
+        if (initDetails.contactEmail) block += `\n✉️ Email: ${initDetails.contactEmail}`;
+        if (initDetails.website) block += `\n🌐 Website: ${initDetails.website}`;
+      }
+      schemesBlocks.push(block);
+    });
+
+    const dynamic_schemes_list = schemesBlocks.length > 0 
+      ? `\n*Matched Support Programs (Selected):*\n\n` + schemesBlocks.join('\n\n') + '\n\n'
+      : '';
+
+    // Emergency support resources
     const resourceBlocks: string[] = [];
     if (activeNeeds.shelter) {
       resourceBlocks.push(`📍 *For Safe Accommodation & Shelter Tonight:*\nFind an immediate safe space to sleep through the PEERS Network partners: 👉 https://www.msf.gov.sg/what-we-do/rough-sleepers`);
@@ -3106,7 +3173,8 @@ export const InitiativesView: React.FC<InitiativesViewProps> = ({ survey, profil
 
     return `Hi ${pName}, it was really nice chatting with you just now. Thank you for sharing your story with us.\n\n` +
       `Our system is currently processing your information to match you with the best financial, housing, and social support workflows.\n\n` +
-      `While we finalize your application and prepare your next steps, here is a list of immediate resources tailored to your situation that you can approach right away:\n\n` +
+      dynamic_schemes_list +
+      `*Immediate Emergency Support Resources:*\n\n` +
       `${dynamic_resource_list}\n\n` +
       `Please take care, and our team will text you an update right here as soon as your primary application details are verified! If you need anything urgent in the meantime, feel free to reply to this message.`;
   };
@@ -3566,7 +3634,7 @@ Example: "Next Best Action: Send immediate financial and food resource reminder 
                         }}
                         className="px-1.5 py-0.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded transition-all font-bold text-[7px] tracking-tight"
                       >
-                        Copy Msg
+                        Copy Quick Details
                       </button>
                       <a
                         href={getWhatsAppLink(initDetails, participantPhone)}
@@ -3616,18 +3684,77 @@ Example: "Next Best Action: Send immediate financial and food resource reminder 
         })}
       </div>
 
-      {/* AI WhatsApp template Message Card */}
+      {/* Search and Add other schemes */}
+      <div className="glass-card rounded-[2rem] p-6 space-y-4 border border-white/5">
+        <h3 className="text-xs font-black text-white/60 uppercase">Add Other Support Schemes</h3>
+        <p className="text-[10px] text-white/50 leading-normal">
+          Search from the global database of municipal social schemes to manually match them to this participant profile.
+        </p>
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search schemes (e.g. ComCare, CDC, SkillsFuture)..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full p-3 bg-slate-900/40 border border-white/10 rounded-xl text-xs text-white placeholder-white/40 focus:outline-none"
+          />
+          {searchQuery.trim() !== '' && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-white/10 rounded-2xl max-h-56 overflow-y-auto z-[60] shadow-2xl p-2 space-y-1 glass-nav">
+              {searchedInitiatives.map(init => (
+                <div key={init.id} className="p-3 hover:bg-white/5 rounded-xl flex items-center justify-between gap-3 text-left transition-all">
+                  <div className="min-w-0">
+                    <span className="block text-[8px] font-black text-blue-400 uppercase tracking-widest leading-none mb-1">{init.category}</span>
+                    <span className="block text-xs font-bold text-white truncate">{init.title}</span>
+                    <span className="block text-[9px] text-white/60 truncate mt-0.5">{init.description}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newRef: ReferralRecommendation = {
+                        initiativeId: init.id,
+                        initiativeTitle: init.title,
+                        category: init.category,
+                        matchReason: "Manually matched by the outreach coordinator.",
+                        priority: "Medium",
+                        selected: true,
+                        followedUp: false,
+                        status: "Matched"
+                      };
+                      onUpdateProfile({
+                        ...selectedProfile,
+                        referrals: [...matchedReferrals, newRef]
+                      });
+                      setSearchQuery('');
+                      alert(`Successfully added "${init.title}" to matched schemes.`);
+                    }}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-[8px] tracking-wider rounded-lg flex-shrink-0 transition-colors"
+                  >
+                    Add
+                  </button>
+                </div>
+              ))}
+              {searchedInitiatives.length === 0 && (
+                <div className="p-3 text-center text-xs text-white/40 italic">
+                  No matching schemes found.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* WhatsApp Template Card */}
       <div className="glass-card rounded-[2rem] p-6 space-y-4 border border-white/5 text-left font-sans">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <WhatsAppIcon size={18} className="text-green-400" />
-            <h3 className="text-xs font-black text-white uppercase tracking-wider">AI WhatsApp Template</h3>
+            <h3 className="text-xs font-black text-white uppercase tracking-wider">WhatsApp Template</h3>
           </div>
-          <span className="text-[8px] font-black uppercase bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">Auto-Assessed</span>
+          <span className="text-[8px] font-black uppercase bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">WhatsApp Template</span>
         </div>
 
         <p className="text-[10px] text-white/60 leading-normal">
-          Based on responses and matches, we dynamically generate a tailored resource text message. Toggle options below to manually include or exclude immediate emergency support lines.
+          Based on responses and matches, we dynamically generate a tailored resource text message combining selected support programs and emergency lines. Toggle options below to include or exclude emergency support.
         </p>
 
         <div className="grid grid-cols-2 gap-2 pt-1">
@@ -3680,25 +3807,16 @@ Example: "Next Best Action: Send immediate financial and food resource reminder 
           </div>
         </div>
 
-        <div className="flex gap-2.5 pt-2">
+        <div className="flex pt-2">
           <button
             onClick={() => {
               navigator.clipboard.writeText(getWhatsAppTemplateMessage());
               alert("WhatsApp template message copied to clipboard!");
             }}
-            className="flex-1 py-3 glass-button rounded-xl text-[10px] font-black uppercase text-white/90 tracking-wide hover:scale-[1.01] active:scale-[0.99] transition-all"
+            className="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wide hover:scale-[1.01] active:scale-[0.99] transition-all"
           >
             Copy Message
           </button>
-          <a
-            href={getWhatsAppTemplateLink()}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wide flex items-center justify-center gap-1.5 shadow-lg shadow-green-500/10 hover:scale-[1.01] active:scale-[0.99] transition-all"
-          >
-            <WhatsAppIcon size={12} />
-            <span>Send WhatsApp</span>
-          </a>
         </div>
       </div>
 
@@ -4319,6 +4437,21 @@ export const InsightsView: React.FC<InsightsViewProps> = ({ survey, profiles }) 
 type Tab = 'home' | 'training' | 'record' | 'profiles' | 'initiatives' | 'schemes' | 'insights';
 
 function App() {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'light' || saved === 'dark') return saved;
+    return 'dark';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('theme', theme);
+    if (theme === 'light') {
+      document.body.classList.add('light-theme');
+    } else {
+      document.body.classList.remove('light-theme');
+    }
+  }, [theme]);
+
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [currentSurvey, setCurrentSurvey] = useState<Survey | null>(null);
   const [surveys, setSurveys] = useState<Survey[]>([]);
@@ -4327,6 +4460,176 @@ function App() {
   const [profiles, setProfiles] = useState<ParticipantProfile[]>([]);
   const [initiatives, setInitiatives] = useState<CommunityInitiative[]>(DEFAULT_INITIATIVES);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+
+  const handleLoadDemoData = () => {
+    const demoSurvey: Survey = {
+      id: 'mock-survey-1',
+      name: 'Community Health & Financial Needs Survey',
+      questions: [
+        { id: 'q1', fieldName: 'name', type: 'string' },
+        { id: 'q2', fieldName: 'age', type: 'enum', options: ['Under 30', '30-59', '60 and above'] },
+        { id: 'q3', fieldName: 'employment', type: 'enum', options: ['Employed full-time', 'Employed part-time', 'Unemployed', 'Retired'] },
+        { id: 'q4', fieldName: 'monthly_income', type: 'enum', options: ['Below $1,500', '$1,500 - $2,999', '$3,000 and above'] },
+        { id: 'q5', fieldName: 'financial_assistance', type: 'enum', options: ['Yes', 'No'] },
+        { id: 'q6', fieldName: 'health_status', type: 'enum', options: ['Excellent', 'Good', 'Fair', 'Poor'] },
+        { id: 'q7', fieldName: 'upskilling_interest', type: 'enum', options: ['Yes', 'No'] },
+        { id: 'q8', fieldName: 'social_support', type: 'enum', options: ['Yes', 'No'] }
+      ]
+    };
+
+    const respondents = [
+      {
+        name: 'Tan Kok Seng',
+        age: '60 and above',
+        employment: 'Retired',
+        monthly_income: 'Below $1,500',
+        financial_assistance: 'No',
+        health_status: 'Fair',
+        upskilling_interest: 'No',
+        social_support: 'No',
+        interviewerNotes: 'Elderly gentleman living alone in a 2-room flat. Experiencing mild mobility difficulties and struggles with food preparation. Expressed concern about utility bills.',
+        completeness: 100,
+        recordingScore: 88,
+        matchedRefs: ['init-1', 'init-6', 'init-9']
+      },
+      {
+        name: 'Aishah Binte Abdul',
+        age: '30-59',
+        employment: 'Unemployed',
+        monthly_income: 'Below $1,500',
+        financial_assistance: 'No',
+        health_status: 'Good',
+        upskilling_interest: 'Yes',
+        social_support: 'Yes',
+        interviewerNotes: 'Mother of three young children. Currently unemployed but eager to undergo career transition and upskilling once childcare subsidies are sorted.',
+        completeness: 100,
+        recordingScore: 92,
+        matchedRefs: ['init-2', 'init-7']
+      },
+      {
+        name: 'Ramasamy s/o Muthu',
+        age: '60 and above',
+        employment: 'Retired',
+        monthly_income: 'Below $1,500',
+        financial_assistance: 'Yes',
+        health_status: 'Poor',
+        upskilling_interest: 'No',
+        social_support: 'No',
+        interviewerNotes: 'Chronic diabetes patient. High medical expenses and no active income source. Needs regular transport help to the clinic.',
+        completeness: 100,
+        recordingScore: 78,
+        matchedRefs: ['init-8', 'init-11']
+      },
+      {
+        name: 'Lim Wei Ting',
+        age: 'Under 30',
+        employment: 'Employed part-time',
+        monthly_income: '$1,500 - $2,999',
+        financial_assistance: 'No',
+        health_status: 'Excellent',
+        upskilling_interest: 'Yes',
+        social_support: 'Yes',
+        interviewerNotes: 'Part-time retail worker looking to acquire digital skills to secure a stable corporate job.',
+        completeness: 100,
+        recordingScore: 95,
+        matchedRefs: ['init-2', 'init-10']
+      },
+      {
+        name: 'Sarah Tan',
+        age: '30-59',
+        employment: 'Employed full-time',
+        monthly_income: '$3,000 and above',
+        financial_assistance: 'No',
+        health_status: 'Good',
+        upskilling_interest: 'No',
+        social_support: 'Yes',
+        interviewerNotes: 'Doing relatively well but interested in senior activities for her elderly mother living with her.',
+        completeness: 100,
+        recordingScore: 85,
+        matchedRefs: ['init-4', 'init-9']
+      },
+      {
+        name: 'Mohamed Syazwan',
+        age: 'Under 30',
+        employment: 'Unemployed',
+        monthly_income: 'Below $1,500',
+        financial_assistance: 'No',
+        health_status: 'Good',
+        upskilling_interest: 'Yes',
+        social_support: 'No',
+        interviewerNotes: 'Fresh graduate currently looking for work. Needs professional mentoring and job navigation assistance.',
+        completeness: 100,
+        recordingScore: 90,
+        matchedRefs: ['init-2', 'init-5']
+      }
+    ];
+
+    const demoProfiles: ParticipantProfile[] = respondents.map((r, index) => {
+      const responses = {
+        name: r.name,
+        age: r.age,
+        employment: r.employment,
+        monthly_income: r.monthly_income,
+        financial_assistance: r.financial_assistance,
+        health_status: r.health_status,
+        upskilling_interest: r.upskilling_interest,
+        social_support: r.social_support
+      };
+
+      const referrals: ReferralRecommendation[] = r.matchedRefs.map(initId => {
+        const init = initiatives.find(i => i.id === initId);
+        return {
+          initiativeId: initId,
+          initiativeTitle: init?.title || 'Community Program',
+          category: init?.category || 'Other',
+          matchReason: `Matched based on participant indicating household income of ${r.monthly_income} and health/employment status as ${r.employment}.`,
+          priority: 'High' as const,
+          selected: true,
+          followedUp: false,
+          status: 'Matched' as const
+        };
+      });
+
+      const analysis: RecordingAnalysis = {
+        score: r.recordingScore,
+        answeredQuestions: ['name', 'age', 'employment', 'monthly_income', 'financial_assistance', 'health_status', 'upskilling_interest', 'social_support'],
+        unansweredQuestions: [],
+        unclearQuestions: [],
+        extractedResponses: responses,
+        improvementAnalysis: {
+          strengths: ['Clear answers provided', 'Addressed all checklist items', 'Interviewer notes align with data'],
+          weaknesses: ['None observed'],
+          actionableTips: ['Continue standard outreach protocols']
+        },
+        needsAndWants: [r.interviewerNotes],
+        detailedFeedback: [
+          { category: 'Completeness', score: 100, feedback: 'All critical details captured.' },
+          { category: 'Engagement', score: 90, feedback: 'Clear responses with high conversational engagement.' }
+        ]
+      };
+
+      return {
+        id: `mock-profile-${index}-${Date.now()}`,
+        surveyId: demoSurvey.id,
+        timestamp: Date.now() - (index * 3600000 * 4),
+        responses,
+        textSummary: `Participant: ${r.name}, age ${r.age}. Monthly income is ${r.monthly_income}. Health is ${r.health_status}. Interviewer Notes: ${r.interviewerNotes}`,
+        completeness: r.completeness,
+        analysis,
+        referrals,
+        dispatchedEmails: [],
+        interviewerNotes: r.interviewerNotes
+      };
+    });
+
+    setCurrentSurvey(demoSurvey);
+    setSurveys(prev => {
+      if (prev.some(s => s.id === demoSurvey.id)) return prev;
+      return [...prev, demoSurvey];
+    });
+    setProfiles(demoProfiles);
+    setActiveTab('insights');
+  };
 
   const handleSurveyUploaded = async (survey: Survey, fileBuffer?: ArrayBuffer, fileName?: string) => {
     setCurrentSurvey(survey);
@@ -4385,13 +4688,22 @@ function App() {
   ];
 
   return (
-    <div className="h-screen h-[100dvh] glass-bg flex flex-col items-center overflow-hidden font-sans">
+    <div className={`h-screen h-[100dvh] glass-bg flex flex-col items-center overflow-hidden font-sans ${theme === 'light' ? 'light-theme' : ''}`}>
       <div className="w-full max-w-md h-full flex flex-col relative overflow-hidden glass-container">
         <header className="glass-header p-6 flex-shrink-0">
           <div className="flex items-center justify-between gap-4">
-            <h1 className="text-xl font-black text-white tracking-tighter uppercase flex-shrink-0" title="Conversational Assessment & Routing Engine for Outreach">CARE-O</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-black text-white tracking-tighter uppercase flex-shrink-0" title="Conversational Assessment & Routing Engine for Outreach">CARE-O</h1>
+              <button
+                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                className="p-1.5 rounded-xl glass-button text-white hover:scale-105 active:scale-95 transition-all flex items-center justify-center"
+                title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+              >
+                {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
+              </button>
+            </div>
             {currentSurvey && (
-              <div className="glass-inset px-3 py-1 rounded-full max-w-[60%] truncate" title={`Active: ${currentSurvey.name}`}>
+              <div className="glass-inset px-3 py-1 rounded-full max-w-[50%] truncate" title={`Active: ${currentSurvey.name}`}>
                 <span className="text-[9px] font-black text-green-400 uppercase tracking-tighter block truncate">Active: {currentSurvey.name}</span>
               </div>
             )}
@@ -4405,6 +4717,7 @@ function App() {
               surveys={surveys}
               currentSurvey={currentSurvey}
               onSelectSurvey={(s) => { setCurrentSurvey(s); setActiveTab('training'); }}
+              onLoadDemoData={handleLoadDemoData}
             />
           )}
           {activeTab === 'training' && currentSurvey && <CoachingView survey={currentSurvey} />}
