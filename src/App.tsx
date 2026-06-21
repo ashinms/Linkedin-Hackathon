@@ -3685,7 +3685,7 @@ Example: "Next Best Action: Send immediate financial and food resource reminder 
       </div>
 
       {/* Search and Add other schemes */}
-      <div className="glass-card rounded-[2rem] p-6 space-y-4 border border-white/5">
+      <div className="glass-card rounded-[2rem] p-6 space-y-4 border border-white/5 relative z-10">
         <h3 className="text-xs font-black text-white/60 uppercase">Add Other Support Schemes</h3>
         <p className="text-[10px] text-white/50 leading-normal">
           Search from the global database of municipal social schemes to manually match them to this participant profile.
